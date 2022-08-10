@@ -1,0 +1,264 @@
+openapi: "3.0.2"
+
+
+info:
+
+  title: "ASBP API"
+  description: "The best from the best app."
+  version: "1.0.0"
+  contact:
+    name: "Dmitry Sidorenko"
+    url: "https://a-bt.ru"
+    email: "dsidorenko@a-bt.ru"
+  license:
+    name: "license MIT"
+
+
+servers:
+
+  - url: http://0.0.0.0:8000/
+    description: Development server
+  - url: https://a-bt.ru/
+    description: Production server
+
+
+security:
+
+  - asbp: []
+
+
+components:
+
+  securitySchemes:
+
+    asbp:
+      type: apiKey
+      in: cookie
+      name: CookieAuth
+
+  parameters:
+
+    limit:
+      name: limit
+      in: query
+      description: ""
+      required: False
+      schema:
+        type: string
+
+    offset:
+      name: offset
+      in: query
+      description: ""
+      required: False
+      schema:
+        type: string
+
+
+tags:
+
+  - name: SYSTEM
+  - name: Claim
+
+
+paths:
+
+  /claims:
+
+    get:
+
+      tags:
+        - Claim
+      summary: "Retrieve all claims"
+      description: "CRUD operations with claim"
+      operationId: "ClaimId"
+      parameters:
+        - $ref: '#/components/parameters/limit'
+
+        - $ref: '#/components/parameters/offset'
+
+      responses:
+
+          200:
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  properties:
+
+                    pass_id_id:
+                      type: integer
+                      format: int32
+                    approved:
+                      type: boolean
+                    id:
+                      type: integer
+                      format: int32
+                    claim_way_id:
+                      type: integer
+                      format: int32
+                    is_in_blacklist:
+                      type: boolean
+                    pnd_agreement:
+                      type: boolean
+                    status:
+                      type: string
+                    pass_type:
+                      type: string
+                    information:
+                      type: string
+                    modified_at:
+                      type: string
+                    created_at:
+                      type: string
+
+          404:
+            description: Not found response
+            content:
+              text/plain:
+                schema:
+                  title: Claim not found
+                  type: string
+                  example: Not found
+
+    post:
+
+      tags:
+        - Claim
+      summary: "Create claim"
+      description: "CRUD operations with claim"
+      parameters: []
+
+      responses:
+
+          200:
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  properties:
+
+                    id:
+                      type: integer
+                      format: int32
+
+          404:
+            description: Not found response
+            content:
+              text/plain:
+                schema:
+                  title: Claim not found
+                  type: string
+                  example: Not found
+
+  /claims/{claims_id}:
+    get:
+
+      tags:
+        - Claim
+      summary: "Retrieve exact claim"
+      description: "CRUD operations with claim"
+      parameters: []
+
+      responses:
+
+          200:
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  properties:
+
+                    pass_id_id:
+                      type: integer
+                      format: int32
+                    approved:
+                      type: boolean
+                    id:
+                      type: integer
+                      format: int32
+                    claim_way_id:
+                      type: integer
+                      format: int32
+                    is_in_blacklist:
+                      type: boolean
+                    pnd_agreement:
+                      type: boolean
+                    status:
+                      type: string
+                    pass_type:
+                      type: string
+                    information:
+                      type: string
+                    modified_at:
+                      type: string
+                    created_at:
+                      type: string
+
+          404:
+            description: Not found response
+            content:
+              text/plain:
+                schema:
+                  title: Claim not found
+                  type: string
+                  example: Not found
+    put:
+
+      tags:
+        - Claim
+      summary: "Make changes on a claim"
+      description: "CRUD operations with claim"
+      parameters: []
+
+      responses:
+
+          200:
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  properties:
+
+                    id:
+                      type: integer
+                      format: int32
+
+          404:
+            description: Not found response
+            content:
+              text/plain:
+                schema:
+                  title: Claim not found
+                  type: string
+                  example: Not found
+
+    delete:
+
+      tags:
+        - Claim
+      summary: "Delete a claim"
+      description: "CRUD operations with claim"
+      parameters: []
+
+      responses:
+
+          200:
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  properties:
+
+                    id:
+                      type: integer
+                      format: int32
+
+          404:
+            description: Not found response
+            content:
+              text/plain:
+                schema:
+                  title: Claim not found
+                  type: string
+                  example: Not found

@@ -1,0 +1,111 @@
+[tool.aerich]
+tortoise_orm = "infrastructure.database.connection.sample_conf"
+location = "infrastructure/database/migrations"
+src_folder = "./."
+
+[tool.pdm]
+[[tool.pdm.source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[[tool.pdm.source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+[project]
+name = ""
+version = ""
+description = ""
+authors = [
+    {name = "Dmitry Sidorenko", email = "dsidorenko@a-bt.ru"},
+]
+dependencies = [
+    "aerich==0.6.3",
+    "aiofiles==0.8.0",
+    "aioredis==2.0.1",
+    "aiosmtplib==1.1.6",
+    "aiosqlite==0.17.0",
+    "amqp==5.1.1",
+    "anyio==3.6.1",
+    "async-timeout==4.0.2",
+    "asyncpg==0.25.0",
+    "attrs==21.4.0",
+    "billiard==3.6.4.0",
+    "celery==5.2.7",
+    "celery-redbeat==2.0.0",
+    "certifi==2022.6.15",
+    "cffi==1.15.1",
+    "click==8.1.2",
+    "click-didyoumean==0.3.0",
+    "click-plugins==1.1.1",
+    "click-repl==0.2.0",
+    "deprecated==1.2.13",
+    "dictdiffer==0.9.0",
+    "dnspython==2.2.1",
+    "email-validator==1.1.3",
+    "environs==9.5.0",
+    "Faker==13.15.1",
+    "flower==1.1.0",
+    "h11==0.12.0",
+    "httpcore==0.15.0",
+    "httptools==0.4.0",
+    "httpx==0.23.0",
+    "humanize==4.2.3",
+    "idna==3.3",
+    "iniconfig==1.1.1",
+    "iso8601==1.0.2",
+    "kombu==5.2.4",
+    "loguru==0.6.0",
+    "marshmallow==3.15.0",
+    "multidict==6.0.2",
+    "orjson>=3.7.11",
+    "packaging==21.3",
+    "pillow==9.2.0",
+    "pluggy==1.0.0",
+    "prometheus-client==0.14.1",
+    "prompt-toolkit==3.0.30",
+    "py==1.11.0",
+    "pycparser==2.21",
+    "pycryptodome==3.15.0",
+    "pydantic==1.9.0",
+    "pyee==9.0.4",
+    "pyparsing==3.0.8",
+    "pypika-tortoise==0.1.6",
+    "pytest==7.1.2",
+    "pytest-asyncio==0.19.0",
+    "python-dateutil==2.8.2",
+    "python-dotenv==0.20.0",
+    "pytz==2022.1",
+    "pyyaml==6.0",
+    "redis==4.3.4",
+    "rfc3986==1.5.0",
+    "sanic==22.6.1",
+    "sanic-ext==22.6.2",
+    "sanic-openapi==21.12.0",
+    "sanic-routing==22.3.0",
+    "sanic-testing==22.6.0",
+    "six==1.16.0",
+    "sniffio==1.2.0",
+    "tenacity==8.0.1",
+    "tomli==2.0.1",
+    "tomlkit==0.10.1",
+    "tornado==6.2",
+    "tortoise-orm==0.19.2",
+    "typing-extensions==4.1.1",
+    "ujson==5.2.0",
+    "uvloop==0.16.0",
+    "vine==5.0.0",
+    "wcwidth==0.2.5",
+    "websockets==10.2",
+    "wrapt==1.14.1",
+    "pandas>=1.4.3",
+    "xlrd>=2.0.1",
+    "openpyxl>=3.0.10",
+]
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-pep517>=1.0.0"]
+build-backend = "pdm.pep517.api"
