@@ -45,7 +45,7 @@ class Server:
         self._set_listeners()
         self._configure_openapi()
         MySignalHandler(self.sanic_app)
-        # self._init_celery()
+        self._init_celery()
 
     def _setup(self):
         async def _set_db():

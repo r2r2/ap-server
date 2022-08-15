@@ -75,7 +75,7 @@ class StrangerThingsEventsController(HTTPMethodView):
     enabled_scopes = ["Сотрудник службы безопасности"]
 
     @protect()
-    async def get(self, request: Request, system_user: SystemUser):
+    async def get(self, request: Request, system_user: SystemUser) -> ResponseStream:
         conf = request.app.ctx.config.streaming
         watcher: Redis = request.app.ctx.redis
         my_key = settings.STRANGER_THINGS_EVENTS_KEY
@@ -158,6 +158,6 @@ class StrangerThingsController(HTTPMethodView):
 
 
 def init_sse_monitoring(app: Sanic):
-    app.add_route(StrangerThingsEventsController.as_view(), "/stranger-things-sse")
-    app.add_route(StrangerThingsController.as_view(), "/stranger-things")
-    app.add_route(StrangerThingsController.as_view(), "/stranger-things/<entity:int>")
+    app.add_route(StrangerThingsEventsController.as_view(), "/stranger-things-sse", methods=["GET"])
+    app.add_route(StrangerThingsController.as_view(), "/stranger-things", methods=["GET"])
+    app.add_route(StrangerThingsController.as_view(), "/stranger-things/<entity:int>", methods=["GET"])

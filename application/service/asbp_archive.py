@@ -97,5 +97,5 @@ class ArchiveController(HTTPMethodView):
 
 
 def init_archive_routes(app: Sanic):
-    app.add_route(ArchiveController.as_view(), "/archive")
-    app.add_route(ArchiveController.as_view(), "/archive/<entity:int>")
+    app.add_route(ArchiveController.as_view(), "/archive", methods=["GET", "POST"])
+    app.add_route(ArchiveController.as_view(), "/archive/<entity:int>", methods=["GET"])

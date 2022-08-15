@@ -87,6 +87,7 @@ class SystemUser(AbstractBaseModel, TimestampMixin, FakeDeleted):
     system_user_session: fields.ReverseRelation["SystemUserSession"]
     active_dir: fields.ReverseRelation["ActiveDir"]
     stranger_things: fields.ReverseRelation["StrangerThings"]
+    push_subscription: fields.ReverseRelation["PushSubscription"]
 
     def __str__(self) -> str:
         return f"{self.username}: {self.first_name} {self.last_name}"
@@ -453,6 +454,7 @@ class ParkingTimeslot(AbstractBaseModel, TimestampMixin):
         'asbp.Transport', on_delete=fields.CASCADE, related_name='parking_timeslot'
     )
 
+
 # ------------------------------------SYSTEM---------------------------------
 
 
@@ -506,6 +508,15 @@ class StrangerThings(AbstractBaseModel, TimestampMixin):
     claim_way_changed = fields.JSONField(null=True, description="изменение маршрутов заявок")
     max_parking_time_hours = fields.JSONField(null=True, description="Превышено максимально допустимое время "
                                                                      "нахождения гостевого автомобиля на парковке")
+
+
+class PushSubscription(AbstractBaseModel, TimestampMixin):
+    """Web Push подписка"""
+    subscription_info = fields.JSONField(index=True,
+                                         description="Информация для отправки push-сообщений этому пользователю")
+    system_user: fields.ForeignKeyRelation["SystemUser"] = fields.ForeignKeyField(
+        "asbp.SystemUser", on_delete=fields.CASCADE, index=True, related_name='push_subscription'
+    )
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ from typing import Union, Type
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from tortoise import exceptions
 from tortoise.transactions import atomic
+from tortoise.queryset import Q
 from pydantic import BaseModel
 
 import settings
@@ -68,8 +69,11 @@ class VisitorService(BaseService):
     @atomic(settings.CONNECTION_NAME)
     async def create(self, system_user: SystemUser, dto: VisitorDto.CreationDto) -> Visitor:
         try:
-            if await Visitor.exists(claim=dto.claim, first_name=dto.first_name, last_name=dto.last_name,
-                                    phone=dto.phone, deleted=False):
+            if await Visitor.exists(Q(passport=dto.passport) |
+                                    Q(international_passport=dto.international_passport) |
+                                    Q(drive_license=dto.drive_license) |
+                                    Q(military_id=dto.military_id),
+                                    deleted=False):
                 raise InconsistencyError(message="This visitor already exists.")
 
             fk_relations = await self.get_visitor_fk_relations(dto)

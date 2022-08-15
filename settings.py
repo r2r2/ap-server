@@ -112,6 +112,12 @@ AERICH_MIGRATION_COMMANDS = [
     "pdm run aerich migrate"
 ]
 
+# -------------------------------------------------Web Push-------------------------------------------------#
+VAPID_PRIVATE_KEY = env.str("VAPID_PRIVATE_KEY")
+VAPID_PUBLIC_KEY = env.str("VAPID_PUBLIC_KEY")
+VAPID_CLAIM_EMAIL = env.str("VAPID_CLAIM_EMAIL")
+VAPID_CLAIMS = {"sub": f"{VAPID_CLAIM_EMAIL}"}
+
 # ----------------------------------------------Regex patterns-------------------------------------------#
 PHONE_NUMBER = r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$'
 

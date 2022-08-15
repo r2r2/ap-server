@@ -102,6 +102,7 @@ dependencies = [
     "pandas>=1.4.3",
     "xlrd>=2.0.1",
     "openpyxl>=3.0.10",
+    "pywebpush>=1.14.0",
 ]
 requires-python = ">=3.10"
 license = {text = "MIT"}

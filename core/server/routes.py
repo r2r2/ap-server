@@ -1,12 +1,11 @@
 from typing import Union, List, Optional, Type
-
-import settings
 from pydantic import BaseModel
 from sanic import Request
 from sanic.exceptions import NotFound
 from sanic.response import HTTPResponse, json
 from sanic.views import HTTPMethodView
 
+import settings
 from application.service.parking import ParkingTimeslotService
 from application.service.black_list import BlackListService
 from application.service.system_settings import SystemSettingsService
@@ -91,6 +90,10 @@ class BaseServiceController(HTTPMethodView):
     @protect()
     async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
         dto = self.validate(self.post_dto, request)
+        print("*" * 500)
+        print(request.json)
+        print(request.json.get("approved"))
+        print("*" * 500)
         service_name: BaseServiceController.target_service = request.app.ctx.service_registry.get(self.target_service)
         model = await service_name.create(system_user, dto)
         return json(await model.values_dict())
@@ -128,7 +131,6 @@ class ClaimController:
                 models = await request.app.ctx.service_registry.get(self.target_service).read_all(limit, offset)
                 return json([await model.values_dict(m2m_fields=True, fk_fields=True,
                                                      o2o_fields=True, backward_fk_fields=True) for model in models])
-
             model = await request.app.ctx.service_registry.get(self.target_service).read(entity)
             if model:
                 return json(await model.values_dict(m2m_fields=True, fk_fields=True,
