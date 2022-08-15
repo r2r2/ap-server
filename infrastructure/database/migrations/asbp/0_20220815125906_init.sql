@@ -170,6 +170,16 @@ CREATE TABLE IF NOT EXISTS "claimwayapproval" (
 COMMENT ON COLUMN "claimwayapproval"."approved" IS 'Заявка одобрена?';
 COMMENT ON COLUMN "claimwayapproval"."comment" IS 'Причина отказа или любой комментарий.';
 COMMENT ON TABLE "claimwayapproval" IS 'Одобрение заявки в процессе согласования';
+CREATE TABLE IF NOT EXISTS "pushsubscription" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "modified_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "subscription_info" JSONB NOT NULL,
+    "system_user_id" INT NOT NULL REFERENCES "systemuser" ("id") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "idx_pushsubscri_system__018e8b" ON "pushsubscription" ("system_user_id");
+COMMENT ON COLUMN "pushsubscription"."subscription_info" IS 'Информация для отправки push-сообщений этому пользователю';
+COMMENT ON TABLE "pushsubscription" IS 'Web Push подписка';
 CREATE TABLE IF NOT EXISTS "strangerthings" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
@@ -346,17 +356,17 @@ CREATE TABLE IF NOT EXISTS "visitor" (
     "pass_id_id" INT REFERENCES "pass" ("id") ON DELETE CASCADE,
     "transport_id" INT REFERENCES "transport" ("id") ON DELETE CASCADE,
     "visitor_photo_id" INT REFERENCES "visitorphoto" ("id") ON DELETE CASCADE,
-    "international_passport_id" INT  UNIQUE REFERENCES "internationalpassport" ("id") ON DELETE CASCADE,
-    "drive_license_id" INT  UNIQUE REFERENCES "drivelicense" ("id") ON DELETE CASCADE,
     "military_id_id" INT  UNIQUE REFERENCES "militaryid" ("id") ON DELETE CASCADE,
-    "passport_id" INT  UNIQUE REFERENCES "passport" ("id") ON DELETE CASCADE
+    "international_passport_id" INT  UNIQUE REFERENCES "internationalpassport" ("id") ON DELETE CASCADE,
+    "passport_id" INT  UNIQUE REFERENCES "passport" ("id") ON DELETE CASCADE,
+    "drive_license_id" INT  UNIQUE REFERENCES "drivelicense" ("id") ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS "idx_visitor_phone_86a24d" ON "visitor" ("phone");
 CREATE INDEX IF NOT EXISTS "idx_visitor_email_2fcbe1" ON "visitor" ("email");
-CREATE INDEX IF NOT EXISTS "idx_visitor_interna_4551f1" ON "visitor" ("international_passport_id");
-CREATE INDEX IF NOT EXISTS "idx_visitor_drive_l_ece27a" ON "visitor" ("drive_license_id");
 CREATE INDEX IF NOT EXISTS "idx_visitor_militar_1177ae" ON "visitor" ("military_id_id");
+CREATE INDEX IF NOT EXISTS "idx_visitor_interna_4551f1" ON "visitor" ("international_passport_id");
 CREATE INDEX IF NOT EXISTS "idx_visitor_passpor_c75999" ON "visitor" ("passport_id");
+CREATE INDEX IF NOT EXISTS "idx_visitor_drive_l_ece27a" ON "visitor" ("drive_license_id");
 COMMENT ON COLUMN "visitor"."first_name" IS 'Имя';
 COMMENT ON COLUMN "visitor"."last_name" IS 'Фамилия';
 COMMENT ON COLUMN "visitor"."middle_name" IS 'Отчество';
@@ -415,13 +425,13 @@ CREATE TABLE IF NOT EXISTS "aerich" (
     "app" VARCHAR(100) NOT NULL,
     "content" JSONB NOT NULL
 );
-CREATE TABLE IF NOT EXISTS "claimway_role" (
-    "claimway_id" INT NOT NULL REFERENCES "claimway" ("id") ON DELETE CASCADE,
-    "role_id" INT NOT NULL REFERENCES "role" ("id") ON DELETE CASCADE
-);
 CREATE TABLE IF NOT EXISTS "claimway_system_user" (
     "claimway_id" INT NOT NULL REFERENCES "claimway" ("id") ON DELETE CASCADE,
     "systemuser_id" INT NOT NULL REFERENCES "systemuser" ("id") ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS "claimway_role" (
+    "claimway_id" INT NOT NULL REFERENCES "claimway" ("id") ON DELETE CASCADE,
+    "role_id" INT NOT NULL REFERENCES "role" ("id") ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS "enablescope_role" (
     "enablescope_id" INT NOT NULL REFERENCES "enablescope" ("id") ON DELETE CASCADE,

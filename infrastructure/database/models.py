@@ -512,8 +512,7 @@ class StrangerThings(AbstractBaseModel, TimestampMixin):
 
 class PushSubscription(AbstractBaseModel, TimestampMixin):
     """Web Push подписка"""
-    subscription_info = fields.JSONField(index=True,
-                                         description="Информация для отправки push-сообщений этому пользователю")
+    subscription_info = fields.JSONField(description="Информация для отправки push-сообщений этому пользователю")
     system_user: fields.ForeignKeyRelation["SystemUser"] = fields.ForeignKeyField(
         "asbp.SystemUser", on_delete=fields.CASCADE, index=True, related_name='push_subscription'
     )

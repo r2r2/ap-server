@@ -1,6 +1,8 @@
 import asyncio
 import aioredis
 from multiprocessing import Process
+
+from application.service.web_push import init_web_push
 from orjson import loads
 from pyee.asyncio import AsyncIOEventEmitter
 from sanic import Sanic
@@ -49,7 +51,6 @@ class Server:
 
     def _setup(self):
         async def _set_db():
-
             conn, conn_archive = await init_database_conn()
             await setup_db(conn, self.sanic_app, conn_archive)
 
@@ -58,6 +59,7 @@ class Server:
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(_set_db())
+        # asyncio.run(_set_db())
 
     def _configure_app(self):
         self.sanic_app.update_config(settings.SanicConfig)
@@ -107,6 +109,7 @@ class Server:
         init_auth(self.sanic_app)
         init_sse_monitoring(self.sanic_app)
         init_archive_routes(self.sanic_app)
+        init_web_push(self.sanic_app)
 
     def _register_api(self):
 
@@ -130,4 +133,3 @@ class Server:
                                fast=settings.SANIC_FAST,
                                workers=settings.SANIC_WORKERS,
                                )
-

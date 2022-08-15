@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Json, conlist, constr, conint, EmailStr, validator, PositiveInt, NonNegativeInt
-from typing import Optional
+from pydantic import (BaseModel, Json, conlist, constr, conint, EmailStr, validator, PositiveInt, NonNegativeInt,
+                      AnyHttpUrl)
+from typing import Optional, Literal
 from datetime import datetime
 
 import settings
@@ -27,6 +28,12 @@ class Auth:
 class ScopeConstructor:
     class UpdateDto(BaseModel):
         scopes: conlist(item_type=EntityId, min_items=1)
+
+
+class WebPush:
+    class SubscriptionDto(BaseModel):
+        endpoint: AnyHttpUrl
+        keys: dict[Literal["p256dh", "auth"], str]
 
 
 class ClaimDto:
