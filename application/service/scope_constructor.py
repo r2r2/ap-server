@@ -1,4 +1,6 @@
 from typing import Type, TypeVar
+
+from application.service.web_push import WebPushController
 from tortoise.queryset import Q
 from sanic import Sanic
 
@@ -15,7 +17,8 @@ C = TypeVar("C",
             Type[BaseServiceController],
             Type[StrangerThingsEventsController],
             Type[StrangerThingsController],
-            Type[ArchiveController]
+            Type[ArchiveController],
+            Type[WebPushController],
             )
 
 
@@ -52,7 +55,9 @@ class EnabledScopeSetter:
         controllers = {
             StrangerThingsEventsController: ("stranger-things-sse",),
             StrangerThingsController: ("stranger-things", "stranger-things/<entity:int>"),
-            ArchiveController: ("archive", "archive/<entity:int>")
+            ArchiveController: ("archive", "archive/<entity:int>"),
+            WebPushController.Subscription: ("/wp/subscription",),
+            WebPushController.NotifyAll: ("/wp/notify-all",),
         }
         for controller, routes in controllers.items():
             for route in routes:
