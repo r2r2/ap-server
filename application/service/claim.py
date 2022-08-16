@@ -3,6 +3,8 @@ import pandas as pd
 from itertools import zip_longest
 from io import BytesIO
 from datetime import datetime, timedelta
+
+from application.service.web_push import WebPushController
 from dateutil.parser import parse
 from typing import Union
 from tortoise.transactions import atomic
@@ -15,7 +17,7 @@ from infrastructure.database.models import (SystemUser,
                                             Pass,
                                             ClaimWayApproval,
                                             Visitor,
-                                            BlackList)
+                                            BlackList, PushSubscription)
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
 from core.dto.access import EntityId
@@ -117,6 +119,10 @@ class ClaimService(BaseService):
                                    time_to_expire=time_to_expire,
                                    claim=claim.id,
                                    claim_way_2=claim_way_2)
+        # Send web push notifications
+        subscriptions = await PushSubscription.filter(system_user__id__in=system_users)
+        await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, subject, text)
+
         return email_struct
 
     @staticmethod

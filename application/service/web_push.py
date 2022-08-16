@@ -1,11 +1,8 @@
-import json as default_json
-
-from orjson import loads
 from pywebpush import webpush, WebPushException
 from sanic.views import HTTPMethodView
 from sanic import Sanic, Request, HTTPResponse, json
-from sanic.exceptions import NotFound
 from tortoise.transactions import atomic
+from tortoise import connections
 
 import settings
 from application.exceptions import InconsistencyError
@@ -25,10 +22,8 @@ class WebPushController:
 
         @protect()
         async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
-            # json_data = request.json.get('subscription_info')
             dto = validate(self.post_dto, request)
             """
-            in postman
             {
                 "endpoint": "http://localhost",
                 "keys": {
@@ -37,15 +32,10 @@ class WebPushController:
                 }
             }
             """
-            print(dto)
-            # subscription = await PushSubscription.get_or_none(subscription_info=json_data)
+            db = connections.get(settings.CONNECTION_NAME)
             subscription, _ = await PushSubscription.get_or_create(system_user=system_user,
-                                                                   subscription_info=dto.dict())
-            # if subscription is None:
-            #     subscription = await self.create_subscription(system_user, json_data)
-
-            print(subscription.subscription_info)
-            print(_)
+                                                                   subscription_info=dto.dict(),
+                                                                   using_db=db)
             return json({
                 "status": "success",
                 "result": {
@@ -54,67 +44,59 @@ class WebPushController:
                 }
             })
 
-        # @atomic(settings.CONNECTION_NAME)
-        # async def create_subscription(self, system_user: SystemUser, json_data: dict) -> PushSubscription:
-        #     return await PushSubscription.create(system_user=system_user, subscription_info=json_data)
-
         @staticmethod
         @atomic(settings.CONNECTION_NAME)
-        async def delete_subscription(system_user: SystemUser, sub_id: EntityId) -> None:
+        async def delete_subscription(sub_id: EntityId) -> None:
             subscription = await PushSubscription.get_or_none(id=sub_id)
             if subscription is None:
                 raise InconsistencyError(message=f"There is no subscription with id={sub_id}.")
             await subscription.delete()
             logger.info(f"Subscription id={sub_id} has been deleted from DB.")
 
-    class NotifySingle(HTTPMethodView):
-        """Send notification for current user."""
-        enabled_scopes = ["Сотрудник службы безопасности"]
-
-        @protect()
-        async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
-            # json_data = request.json['subscription_info']
-            json_data = request.json
-            # subscription = {'subscription_info': json_data['subscription_info']}
-            # subscription = {'subscription_info': json_data}
-            # subscription = default_json.loads({'subscription_info': json_data})
-            subscription = request.json
-            print("notify_signle: {}".format(subscription))
-            title = "Yay!"
-            body = "Mary had a little lamb, with a nice mint jelly"
-            results = await WebPushController.trigger_push_notification(
-                subscription,
-                title,
-                body,
-                system_user
-            )
-            return json({
-                "status": "success",
-                "result": results
-            })
+    # class NotifySingle(HTTPMethodView):
+    #     """Send notification for current user."""
+    #     enabled_scopes = ["Сотрудник службы безопасности"]
+    #
+    #     @protect()
+    #     async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
+    #         # json_data = request.json['subscription_info']
+    #         json_data = request.json
+    #         # subscription = {'subscription_info': json_data['subscription_info']}
+    #         # subscription = {'subscription_info': json_data}
+    #         # subscription = default_json.loads({'subscription_info': json_data})
+    #         subscription = request.json
+    #         print("notify_signle: {}".format(subscription))
+    #         title = "Yay!"
+    #         body = "Mary had a little lamb, with a nice mint jelly"
+    #         results = await WebPushController.trigger_push_notification(
+    #             subscription,
+    #             title,
+    #             body,
+    #             system_user
+    #         )
+    #         return json({
+    #             "status": "success",
+    #             "result": results
+    #         })
 
     class NotifyAll(HTTPMethodView):
         enabled_scopes = ["Сотрудник службы безопасности"]
+        post_dto = WebPush.NotifyAllDto
 
         @protect()
         async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
-            # get all the subscription from the database
-            subscriptions = await PushSubscription.all()
-            title = "Yay!"
-            body = "Mary had a little lamb, with a nice mint jelly"
-            results = await WebPushController.trigger_push_notifications_for_subscriptions(
-                subscriptions,
-                title,
-                body,
-                system_user
-            )
-            return json({
-                "status": "success",
-                "result": results
-            })
+            dto = validate(self.post_dto, request)
+            if subscriptions := await PushSubscription.all():
+                results = await WebPushController.trigger_push_notifications_for_subscriptions(
+                    subscriptions,
+                    dto.title,
+                    dto.body
+                )
+                return json({"status": "success", "result": results})
+            raise InconsistencyError(message="There are no active subscriptions.")
 
     @staticmethod
-    async def check_for_exceptions(ex: WebPushException, system_user: SystemUser, sub_id: EntityId) -> None:
+    async def check_for_exceptions(ex: WebPushException, sub_id: EntityId) -> None:
         """
         Check exception status code.
         If status code 404 or 410 then delete this subscription from DB.
@@ -122,7 +104,7 @@ class WebPushController:
         match ex.response.status_code:
             case 404 | 410:
                 logger.warning(f'Subscription id={sub_id} has expired or is no longer valid: {ex}')
-                await WebPushController.Subscription.delete_subscription(system_user, sub_id)
+                await WebPushController.Subscription.delete_subscription(sub_id)
             case _:
                 logger.warning(ex)
         # Mozilla returns additional information in the body of the response.
@@ -131,7 +113,7 @@ class WebPushController:
             logger.warning(f"Remote service replied with a {extra.code}:{extra.errno}, {extra.message}")
 
     @staticmethod
-    async def trigger_push_notification(sub: PushSubscription, title: str, body: str, system_user: SystemUser) -> bool:
+    async def trigger_push_notification(sub: PushSubscription, title: str, body: str) -> bool:
         """Send Push notification using pywebpush."""
         try:
             response = webpush(
@@ -142,21 +124,20 @@ class WebPushController:
             )
             return response.ok
         except WebPushException as ex:
-            await WebPushController.check_for_exceptions(ex, system_user, sub.id)
+            await WebPushController.check_for_exceptions(ex, sub.id)
             return False
 
     @staticmethod
     async def trigger_push_notifications_for_subscriptions(subscriptions: list[PushSubscription], title: str,
-                                                           body: str, system_user: SystemUser) -> list:
+                                                           body: str) -> list[bool]:
         """
-        Loop through all subscirptions and send all the clients a push notification.
+        Loop through all subscriptions and send all the clients a push notification.
         """
-        print(subscriptions)
-        return [await WebPushController.trigger_push_notification(subscription, title, body, system_user)
+        return [await WebPushController.trigger_push_notification(subscription, title, body)
                 for subscription in subscriptions]
 
 
 def init_web_push(app: Sanic) -> None:
     app.add_route(WebPushController.Subscription.as_view(), "/wp/subscription", methods=["POST"])
-    app.add_route(WebPushController.NotifySingle.as_view(), "/wp/notify-single", methods=["POST"])
     app.add_route(WebPushController.NotifyAll.as_view(), "/wp/notify-all", methods=["POST"])
+    # app.add_route(WebPushController.NotifySingle.as_view(), "/wp/notify-single", methods=["POST"])

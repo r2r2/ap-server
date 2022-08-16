@@ -1,5 +1,5 @@
 from pydantic import (BaseModel, Json, conlist, constr, conint, EmailStr, validator, PositiveInt, NonNegativeInt,
-                      AnyHttpUrl)
+                      AnyUrl)
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -32,8 +32,12 @@ class ScopeConstructor:
 
 class WebPush:
     class SubscriptionDto(BaseModel):
-        endpoint: AnyHttpUrl
+        endpoint: AnyUrl
         keys: dict[Literal["p256dh", "auth"], str]
+
+    class NotifyAllDto(BaseModel):
+        title: str
+        body: str
 
 
 class ClaimDto:
