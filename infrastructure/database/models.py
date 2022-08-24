@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import TypeVar
 from tortoise import fields
 from tortoise.models import Model
 
@@ -50,6 +51,9 @@ class AbstractBaseModel(Model):
         abstract = True
 
 
+MODEL = TypeVar("MODEL", bound=AbstractBaseModel)
+
+
 class TimestampMixin:
     """Общий миксин даты создания и изменения"""
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -88,6 +92,7 @@ class SystemUser(AbstractBaseModel, TimestampMixin, FakeDeleted):
     active_dir: fields.ReverseRelation["ActiveDir"]
     stranger_things: fields.ReverseRelation["StrangerThings"]
     push_subscription: fields.ReverseRelation["PushSubscription"]
+    claims: fields.ReverseRelation["Claim"]
 
     def __str__(self) -> str:
         return f"{self.username}: {self.first_name} {self.last_name}"
@@ -193,7 +198,7 @@ class Visitor(AbstractBaseModel, TimestampMixin, FakeDeleted):
     visit_session: fields.ReverseRelation["VisitSession"]
 
     def __str__(self) -> str:
-        return f"ID={self.id}: {self.last_name} {self.first_name} {self.middle_name}"
+        return f"{self.last_name} {self.first_name} {self.middle_name}"
 
 
 class VisitSession(AbstractBaseModel, TimestampMixin):
@@ -321,6 +326,9 @@ class Claim(AbstractBaseModel, TimestampMixin):
     pass_id: fields.ForeignKeyNullableRelation["Pass"] = fields.ForeignKeyField(
         'asbp.Pass', on_delete=fields.CASCADE, related_name='claims', null=True, index=True
     )
+    system_user: fields.ForeignKeyRelation["SystemUser"] = fields.ForeignKeyField(
+        'asbp.SystemUser', on_delete=fields.CASCADE, related_name="claims"
+    )
     pass_type = fields.CharField(max_length=64, description='Тип пропуска (разовый/временный/материальный)')
     approved = fields.BooleanField(default=False, description='Заявка одобрена?')
     claim_way_approved = fields.BooleanField(null=True, description="Основной маршрут согласования")
@@ -338,7 +346,7 @@ class Claim(AbstractBaseModel, TimestampMixin):
 
 class Pass(AbstractBaseModel, TimestampMixin):
     """Пропуск"""
-    rfid = fields.BigIntField(null=True, index=True)
+    rfid = fields.BigIntField(null=True, index=True, unique=True)
     pass_type = fields.CharField(max_length=64, description='Тип пропуска (бумажный/карта/лицо)')
     valid_till_date = fields.DatetimeField(description='До какого числа действует пропуск')
     valid = fields.BooleanField(default=True, description='Пропуск действителен?')
@@ -348,7 +356,7 @@ class Pass(AbstractBaseModel, TimestampMixin):
     claim_to_zones: fields.ReverseRelation["ClaimToZone"]
 
     def __str__(self) -> str:
-        return f"Тип пропуска (бумажный/карта/лицо): {self.pass_type}"
+        return f"{self.rfid}"
 
 
 class ClaimWay(AbstractBaseModel, TimestampMixin):

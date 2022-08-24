@@ -32,7 +32,6 @@ from core.utils.encrypt import encrypt_password
 @atomic(settings.CONNECTION_NAME)
 async def fill_with_default_data() -> None:
     from faker import Faker
-    from datetime import datetime
 
     fake = Faker("ru_RU")
 
@@ -50,9 +49,9 @@ async def fill_with_default_data() -> None:
     )
     root_role = await Role.create(name='root')
     admin_role = await Role.create(name='Администратор')
-    applicant_role = await Role.create(name='Заявитель')
-    security_officer_role = await Role.create(name="Сотрудник службы безопасности")
-    operator_role = await Role.create(name="Оператор Бюро пропусков")
+    applicant_role = await Role.create(name='Заявитель')  # Роль, позволяющая оформить заявку на посещение
+    security_officer_role = await Role.create(name="Сотрудник службы безопасности")  # Роль, имеющая возможность просмотра событий по заявкам
+    operator_role = await Role.create(name="Оператор Бюро пропусков")  # Имеющий полномочия оформлять пропуска на вход. Заявки на оформление пропуска поступают Оператору через Систему
 
     crypted_password, salt = encrypt_password("123456")
 
@@ -116,7 +115,8 @@ async def fill_with_default_data() -> None:
         claim = await Claim.create(pass_type=fake.random.choice(["разовый", "временный", "материальный"]),
                                    status=fake.random.choice(["действующая", "отработана", "просрочена"]),
                                    claim_way=claim_way,
-                                   information=fake.sentence(nb_words=10))
+                                   information=fake.sentence(nb_words=10),
+                                   system_user=sys_user)
 
         await ClaimWayApproval.create(system_user=root, claim=claim)
         await ClaimWayApproval.create(system_user=sys_user, claim=claim)

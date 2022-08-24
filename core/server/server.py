@@ -1,8 +1,6 @@
 import asyncio
 import aioredis
 from multiprocessing import Process
-
-from application.service.web_push import init_web_push
 from orjson import loads
 from pyee.asyncio import AsyncIOEventEmitter
 from sanic import Sanic
@@ -14,6 +12,7 @@ from application.service.service_registry import ServiceRegistry
 from application.access.access_registry import AccessRegistry
 from application.service.scope_constructor import EnabledScopeSetter
 from application.service.asbp_archive import init_archive_routes
+from application.service.web_push import init_web_push
 from config.config import Config
 from core.server.routes import BaseServiceController
 from core.utils.loggining import LogsHandler, logger
@@ -47,10 +46,11 @@ class Server:
         self._set_listeners()
         self._configure_openapi()
         MySignalHandler(self.sanic_app)
-        self._init_celery()
+        # self._init_celery()
 
     def _setup(self):
         async def _set_db():
+
             conn, conn_archive = await init_database_conn()
             await setup_db(conn, self.sanic_app, conn_archive)
 
@@ -59,7 +59,6 @@ class Server:
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(_set_db())
-        # asyncio.run(_set_db())
 
     def _configure_app(self):
         self.sanic_app.update_config(settings.SanicConfig)
@@ -133,3 +132,4 @@ class Server:
                                fast=settings.SANIC_FAST,
                                workers=settings.SANIC_WORKERS,
                                )
+

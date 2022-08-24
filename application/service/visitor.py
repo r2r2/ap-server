@@ -1,7 +1,11 @@
 import base64
+import qrcode
+from barcode import Code128
+from barcode.writer import SVGWriter
 from datetime import datetime
+from random import randint
 from io import BytesIO
-from typing import Union, Type
+from typing import Type
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from tortoise import exceptions
 from tortoise.transactions import atomic
@@ -28,7 +32,6 @@ from infrastructure.database.models import (Passport,
                                             MilitaryId,
                                             Transport,
                                             Visitor,
-                                            AbstractBaseModel,
                                             VisitSession,
                                             VisitorPhoto,
                                             Claim,
@@ -38,8 +41,11 @@ from infrastructure.database.models import (Passport,
                                             WatermarkPosition,
                                             ClaimWay,
                                             SystemUser,
-                                            StrangerThings)
+                                            StrangerThings,
+                                            PushSubscription,
+                                            MODEL)
 from application.exceptions import InconsistencyError
+from application.service.web_push import WebPushController
 from application.service.base_service import BaseService
 from application.service.claim import ClaimService
 from application.service.black_list import BlackListService
@@ -50,8 +56,9 @@ class VisitorService(BaseService):
     target_model = Visitor
 
     @staticmethod
-    async def get_visitor_fk_relations(dto: Union[VisitorDto.CreationDto,
-                                                  VisitorDto.UpdateDto]) -> dict:
+    async def get_visitor_fk_relations(
+            dto: VisitorDto.CreationDto | VisitorDto.UpdateDto
+    ) -> dict[str, Type[MODEL] | None]:
         """Trying to get Visitor's documents, transports, claims and returning them as a dict"""
         fk_relations = {
             "passport": await Passport.get_or_none(id=dto.passport) if dto.passport else None,
@@ -61,7 +68,7 @@ class VisitorService(BaseService):
             "drive_license": await DriveLicense.get_or_none(id=dto.drive_license) if dto.drive_license else None,
             "military_id": await MilitaryId.get_or_none(id=dto.military_id) if dto.military_id else None,
             "transport": await Transport.get_or_none(id=dto.transport) if dto.transport else None,
-            "claim": await Claim.get_or_none(id=dto.claim) if dto.claim else None,
+            "claim": await Claim.get_or_none(id=dto.claim).prefetch_related() if dto.claim else None,
             "visitor_photo": await VisitorPhoto.get_or_none(id=dto.visitor_photo) if dto.visitor_photo else None
         }
         return fk_relations
@@ -69,11 +76,13 @@ class VisitorService(BaseService):
     @atomic(settings.CONNECTION_NAME)
     async def create(self, system_user: SystemUser, dto: VisitorDto.CreationDto) -> Visitor:
         try:
-            if await Visitor.exists(Q(passport=dto.passport) |
-                                    Q(international_passport=dto.international_passport) |
-                                    Q(drive_license=dto.drive_license) |
-                                    Q(military_id=dto.military_id),
-                                    deleted=False):
+            if await Visitor.exists(
+                    Q(passport=dto.passport) |
+                    Q(international_passport=dto.international_passport) |
+                    Q(drive_license=dto.drive_license) |
+                    Q(military_id=dto.military_id),
+                    deleted=False
+            ):
                 raise InconsistencyError(message="This visitor already exists.")
 
             fk_relations = await self.get_visitor_fk_relations(dto)
@@ -102,8 +111,7 @@ class VisitorService(BaseService):
                 self.notify(NotifyVisitorInBlackListEvent(
                     await BlackListService.collect_target_users(visitor, user=system_user)))
 
-            if fk_relations["claim"]:
-                claim: Claim = fk_relations["claim"]
+            if claim := fk_relations["claim"]:
                 claim_way = await ClaimWay.get_or_none(claims=claim.id).prefetch_related(
                     "system_users") if claim.claim_way else None
                 if claim_way:
@@ -112,7 +120,7 @@ class VisitorService(BaseService):
             return visitor
 
         except exceptions.IntegrityError as ex:
-            raise InconsistencyError(message=f"{ex}.")
+            raise InconsistencyError(ex=ex)
 
     @atomic(settings.CONNECTION_NAME)
     async def update(self, system_user: SystemUser, entity_id: EntityId, dto: VisitorDto.UpdateDto) -> Visitor:
@@ -148,17 +156,31 @@ class VisitorService(BaseService):
 
             await visitor.save()
 
-            if fk_relations["claim"]:
-                claim: Claim = fk_relations["claim"]
+            if claim := fk_relations["claim"]:
                 claim_way = await ClaimWay.get_or_none(id=claim.claim_way_id).prefetch_related(
                     "system_users") if claim.claim_way else None
                 if claim_way:
                     self.notify(await ClaimService.EventName.time_before_for_claim_way(claim_way, claim))
 
+            if fk_relations["pass_id"] and visitor.claim:
+                await self.send_webpush(system_user, visitor)
+
             return visitor
 
         except exceptions.IntegrityError as ex:
             raise InconsistencyError(message=f"{ex}")
+
+    async def send_webpush(self, system_user: SystemUser, visitor: Visitor) -> None:
+        """
+        Send webpush notification to claim creator
+        if pass was assigned to visitor another system_user
+        """
+        claim = await Claim.get(id=visitor.claim_id)  # noqa
+        if claim.system_user_id != system_user.id:  # noqa
+            title = f"Выдан пропуск для {visitor}."
+            body = f"{system_user} назначил пропуск №{visitor.pass_id} посетителю {visitor}."
+            subscriptions = await PushSubscription.filter(system_user=claim.system_user_id)  # noqa
+            await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, title, body)
 
     @atomic(settings.CONNECTION_NAME)
     async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
@@ -190,7 +212,7 @@ class VisitorService(BaseService):
             await StrangerThings.create(system_user=system_user, pass_to_black_list=dct)
 
     @staticmethod
-    async def get_info_about_current_visit(entity_id: EntityId) -> dict[str, Union[dict, list[dict], str, None]]:
+    async def get_info_about_current_visit(entity_id: EntityId) -> dict[str, dict | list[dict] | str | None]:
         """Return info about visitor's visit"""
         visitor: Visitor = await Visitor.get_or_none(id=entity_id).prefetch_related("visit_session")
         if visitor is None:
@@ -412,8 +434,7 @@ class VisitorPhotoService(BaseService):
     async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
         return await super().delete(system_user, entity_id)
 
-    async def work_with_images(self, dto: Union[VisitorPhotoDto.CreationDto,
-                                                VisitorPhotoDto.UpdateDto]) -> None:
+    async def work_with_images(self, dto: VisitorPhotoDto.CreationDto | VisitorPhotoDto.UpdateDto) -> None:
         """
         If watermark is True -> applying watermark to images
         and then convert them to byte string with separator
@@ -427,8 +448,7 @@ class VisitorPhotoService(BaseService):
         await self.convert_list_img_to_byte_string(dto)
 
     @staticmethod
-    async def convert_list_img_to_byte_string(dto: Union[VisitorPhotoDto.CreationDto,
-                                                         VisitorPhotoDto.UpdateDto]) -> None:
+    async def convert_list_img_to_byte_string(dto: VisitorPhotoDto.CreationDto | VisitorPhotoDto.UpdateDto) -> None:
         """Receive images as list of bytes and convert it to byte string with separator"""
         separator = b"$"
         max_photo_to_upload: int = await settings.system_settings("max_photo_upload")
@@ -448,7 +468,8 @@ class PassService(BaseService):
 
     @atomic(settings.CONNECTION_NAME)
     async def create(self, system_user: SystemUser, dto: PassDto.CreationDto) -> Pass:
-
+        if not dto.rfid:  # TODO who will provide rfid?
+            setattr(dto, "rfid", randint(10 ** 6, 10 ** 7 - 1))
         entity_kwargs = {field: value
                          for field, value in dto.dict().items()
                          if value and not field.startswith("valid")}
@@ -481,6 +502,32 @@ class PassService(BaseService):
     @atomic(settings.CONNECTION_NAME)
     async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
         return await super().delete(system_user, entity_id)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def create_qr_code(self, system_user: SystemUser, entity: EntityId) -> str:
+        """Creating QR code from Pass.rfid"""
+        pass_id = await Pass.get_or_none(id=entity).only("rfid")
+        if pass_id.rfid is None:
+            raise InconsistencyError(message="To create qrcode RFID couldn't be NULL.")
+        qr = qrcode.QRCode()
+        qr.add_data(pass_id.rfid)
+        qr.make(fit=True)
+        qr = qr.make_image(fill_color="black", back_color="white")  # qrcode.image.pil.PilImage
+        qr.save(buffered := BytesIO())
+        image = str(base64.b64encode(buffered.getvalue()))
+        buffered.close()
+        return image
+
+    @atomic(settings.CONNECTION_NAME)
+    async def create_barcode(self, system_user: SystemUser, entity: EntityId) -> str:
+        """Creating BAR code from Pass.rfid"""
+        pass_id = await Pass.get_or_none(id=entity).only("rfid")
+        if pass_id.rfid is None:
+            raise InconsistencyError(message="To create barcode RFID couldn't be NULL.")
+        Code128(str(pass_id.rfid), writer=SVGWriter()).write(buffered := BytesIO())
+        bar_code = str(base64.b64encode(buffered.getvalue()))
+        buffered.close()
+        return bar_code
 
 
 class TransportService(BaseService):
@@ -524,7 +571,7 @@ class WaterMarkService(BaseService):
     target_model = WaterMark
 
     @atomic(settings.CONNECTION_NAME)
-    async def create(self, system_user: SystemUser, dto: WaterMarkDto.CreationDto) -> AbstractBaseModel:
+    async def create(self, system_user: SystemUser, dto: WaterMarkDto.CreationDto) -> MODEL:
         return await super().create(system_user, dto)
 
     @atomic(settings.CONNECTION_NAME)
@@ -543,7 +590,7 @@ class WaterMarkService(BaseService):
         return await super().delete(system_user, entity_id)
 
     @staticmethod
-    async def apply_watermark(dto: Union[VisitorPhotoDto.CreationDto, VisitorPhotoDto.UpdateDto],
+    async def apply_watermark(dto: VisitorPhotoDto.CreationDto | VisitorPhotoDto.UpdateDto,
                               w_type: str = "image") -> None:
         """Add watermark to the images"""
         watermark = await WaterMarkService._get_watermark(w_type, dto)
@@ -599,8 +646,7 @@ class WaterMarkService(BaseService):
 
     @staticmethod
     async def _get_watermark(w_type: str,
-                             dto: Union[VisitorPhotoDto.CreationDto,
-                                        VisitorPhotoDto.UpdateDto]) -> Union[Type[Image.Image], str]:
+                             dto: VisitorPhotoDto.CreationDto | VisitorPhotoDto.UpdateDto) -> Type[Image.Image] | str:
         """Get WaterMark from DB and returns Image or string object"""
         watermark_type = await WaterMark.get_or_none(id=dto.watermark_id)
         if watermark_type is None:
@@ -624,7 +670,7 @@ class WaterMarkService(BaseService):
 
     @staticmethod
     async def _get_coordinates(width: int, height: int,
-                               dto: Union[VisitorPhotoDto.CreationDto, VisitorPhotoDto.UpdateDto]) -> tuple[int, int]:
+                               dto: VisitorPhotoDto.CreationDto | VisitorPhotoDto.UpdateDto) -> tuple[int, int]:
         """Calculate proper coordinates to position watermark on image."""
         if dto.watermark_width > width // 2:
             raise InconsistencyError(
@@ -638,19 +684,20 @@ class WaterMarkService(BaseService):
                         f"available image height for applying watermark."
                         f"Choose height less than {height // 2}."
             )
-        if dto.watermark_position == WatermarkPosition.UPPER_LEFT:
-            return 0, 0
-        elif dto.watermark_position == WatermarkPosition.UPPER_RIGHT:
-            return width - dto.watermark_width, 0
-        elif dto.watermark_position == WatermarkPosition.LOWER_LEFT:
-            return 0, height - dto.watermark_height
-        elif dto.watermark_position == WatermarkPosition.LOWER_RIGHT:
-            return width - dto.watermark_width, height - dto.watermark_height
-        elif dto.watermark_position == WatermarkPosition.CENTER:
-            return (width - dto.watermark_width) // 2, (height - dto.watermark_height) // 2
+        match dto.watermark_position:
+            case WatermarkPosition.UPPER_LEFT:
+                return 0, 0
+            case WatermarkPosition.UPPER_RIGHT:
+                return width - dto.watermark_width, 0
+            case WatermarkPosition.LOWER_LEFT:
+                return 0, height - dto.watermark_height
+            case WatermarkPosition.LOWER_RIGHT:
+                return width - dto.watermark_width, height - dto.watermark_height
+            case WatermarkPosition.CENTER:
+                return (width - dto.watermark_width) // 2, (height - dto.watermark_height) // 2
 
 
-async def set_params_for_document(dto: BaseModel, target_model: AbstractBaseModel = None) -> Union[dict, None]:
+async def set_params_for_document(dto: BaseModel, target_model: MODEL = None) -> dict | None:
     """
     POST: If target_model is not transferred, create dict (return dict).
     PUT: Receives target_model and sets attributes (return None).

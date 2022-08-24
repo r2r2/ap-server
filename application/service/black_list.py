@@ -4,9 +4,10 @@ import settings
 from core.dto.access import EntityId
 from core.dto.service import BlackListDto, EmailStruct
 from core.communication.event import NotifyVisitorInBlackListEvent
-from infrastructure.database.models import BlackList, AbstractBaseModel, Visitor, SystemUser
+from infrastructure.database.models import BlackList, AbstractBaseModel, Visitor, SystemUser, PushSubscription
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
+from application.service.web_push import WebPushController
 
 
 class BlackListService(BaseService):
@@ -14,15 +15,19 @@ class BlackListService(BaseService):
 
     @staticmethod
     async def collect_target_users(visitor: Visitor, user: SystemUser) -> EmailStruct:
-        security_officers = await SystemUser.filter(scopes=4)  # Role.get(id=4) == 'Сотрудник службы безопасности'
+        # TODO do something or make sure Role.get(id=4) == 'Сотрудник службы безопасности'
+        security_officers = await SystemUser.filter(scopes=4)
 
+        subject = settings.BLACKLIST_NOTIFICATION_SUBJECT_TEXT
         text = settings.BLACKLIST_NOTIFICATION_BODY_TEXT.format(user=user, visitor=visitor)
-
         emails = [user.email for user in security_officers]
 
         email_struct = EmailStruct(email=emails,
                                    text=text,
-                                   subject=settings.BLACKLIST_NOTIFICATION_SUBJECT_TEXT)
+                                   subject=subject)
+        # Send web push notifications
+        subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in security_officers])
+        await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, subject, text)
 
         return email_struct
 

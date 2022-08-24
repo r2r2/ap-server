@@ -1,4 +1,4 @@
-from typing import Optional, List, Type, Union
+from typing import Type
 from pydantic import BaseModel
 from sanic import Request
 from sanic.exceptions import NotFound
@@ -18,27 +18,25 @@ from core.dto import validate, access
 from core.dto.access import EntityId
 from core.server.auth import protect
 from core.dto.service import ScopeConstructor
+from core.utils.limit_offset import get_limit_offset
 
 
 class BaseAccessController(HTTPMethodView):
-    enabled_scopes: Union[List[str], str]
+    enabled_scopes: list[str] | str
     entity_name: str
     identity_type: Type
-    post_dto: BaseModel
-    put_dto: BaseModel
-    access_type: BaseAccess
+    post_dto: Type[BaseModel]
+    put_dto: Type[BaseModel]
+    access_type: Type[BaseAccess]
 
     @staticmethod
-    def validate(dto_type: BaseModel, request: Request) -> BaseModel:
+    def validate(dto_type: Type[BaseModel], request: Request) -> Type[BaseModel]:
         return validate(dto_type, request)
 
     @protect(retrive_user=False)
-    async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+    async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
         if entity is None:
-            limit = request.args.get("limit")
-            offset = request.args.get("offset")
-            limit = int(limit) if limit and limit.isdigit() else None
-            offset = int(offset) if offset and offset.isdigit() else None
+            limit, offset = await get_limit_offset(request)
             models = await request.app.ctx.access_registry.get(self.access_type).read_all(limit, offset)
             return json([await model.values_dict() for model in models])
 
@@ -73,12 +71,9 @@ class ScopeConstructorController(BaseAccessController):
     access_type = ScopeConstructorAccess
 
     @protect(retrive_user=False)
-    async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+    async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
         if entity is None:
-            limit = request.args.get("limit")
-            offset = request.args.get("offset")
-            limit = int(limit) if limit and limit.isdigit() else None
-            offset = int(offset) if offset and offset.isdigit() else None
+            limit, offset = await get_limit_offset(request)
             models = await request.app.ctx.access_registry.get(self.access_type).read_all(limit, offset)
             return json([await model.values_dict(m2m_fields=True) for model in models])
 
@@ -90,7 +85,7 @@ class ScopeConstructorController(BaseAccessController):
 
     @protect()
     async def put(self, request: Request, user: EntityId, entity: EntityId = None) -> HTTPResponse:
-        dto = self.validate(self.put_dto, request)  # type: ignore
+        dto = self.validate(self.put_dto, request)
         return json(await request.app.ctx.access_registry.get(self.access_type).update(user, entity, dto, request))
 
 
@@ -121,12 +116,9 @@ class ClaimWayController(BaseAccessController):
     access_type = ClaimWayAccess
 
     @protect(retrive_user=False)
-    async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+    async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
         if entity is None:
-            limit = request.args.get("limit")
-            offset = request.args.get("offset")
-            limit = int(limit) if limit and limit.isdigit() else None
-            offset = int(offset) if offset and offset.isdigit() else None
+            limit, offset = await get_limit_offset(request)
             models = await request.app.ctx.access_registry.get(self.access_type).read_all(limit, offset)
             return json([await model.values_dict(m2m_fields=True) for model in models])
 
@@ -165,7 +157,7 @@ class ParkingPlaceBulkCreateDeleteController(BaseAccessController):
 
     @protect()
     async def post(self, request: Request, user: EntityId) -> HTTPResponse:
-        dto = self.validate(self.post_dto, request)  # type: ignore
+        dto = self.validate(self.post_dto, request)
         models = await request.app.ctx.access_registry.get(self.access_type).mass_create(user, dto)
         return json({"parking_places": [await model.values_dict() for model in models]})
 

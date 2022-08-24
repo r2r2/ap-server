@@ -113,8 +113,8 @@ class ClaimWayAccess(BaseAccess):
     target_model = ClaimWay
 
     @staticmethod
-    async def add_roles_and_users(claim_way: ClaimWay, dto: Union[access.ClaimWay.CreationDto,
-                                                                  access.ClaimWay.UpdateDto]) -> None:
+    async def add_roles_and_users(claim_way: ClaimWay,
+                                  dto: access.ClaimWay.CreationDto | access.ClaimWay.UpdateDto) -> None:
         """Add Roles and SystemUsers to ClaimWay"""
         if dto.system_users:
             sys_users = await SystemUser.filter(id__in=dto.system_users)

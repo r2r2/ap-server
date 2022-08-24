@@ -1,6 +1,4 @@
 from typing import Type, TypeVar
-
-from application.service.web_push import WebPushController
 from tortoise.queryset import Q
 from sanic import Sanic
 
@@ -9,6 +7,7 @@ from core.server.controllers import BaseAccessController
 from core.server.routes import BaseServiceController
 from core.server.sse_monitoring import StrangerThingsEventsController, StrangerThingsController
 from application.service.asbp_archive import ArchiveController
+from application.service.web_push import WebPushController
 from application.exceptions import InconsistencyError
 
 
@@ -56,8 +55,8 @@ class EnabledScopeSetter:
             StrangerThingsEventsController: ("stranger-things-sse",),
             StrangerThingsController: ("stranger-things", "stranger-things/<entity:int>"),
             ArchiveController: ("archive", "archive/<entity:int>"),
-            WebPushController.Subscription: ("/wp/subscription",),
-            WebPushController.NotifyAll: ("/wp/notify-all",),
+            WebPushController.Subscription: ("wp/subscription", "wp/subscription/<entity:int>"),
+            WebPushController.NotifyAll: ("wp/notify-all",),
         }
         for controller, routes in controllers.items():
             for route in routes:
@@ -67,9 +66,9 @@ class EnabledScopeSetter:
     async def set_scopes(name: str, controller: C) -> None:
         en_sc = await EnableScope.get_or_none(name=name).prefetch_related("scopes")
         if en_sc is None:
-            # raise InconsistencyError(message=f"There is no scope with name: {name}")
+            raise InconsistencyError(message=f"There is no scope with name: {name}")
             # TODO remove creation in prod
-            en_sc = await EnableScope.create(name=name)
+            # en_sc = await EnableScope.create(name=name)
         enable_scopes = await en_sc.scopes.all()
         setattr(
             controller,

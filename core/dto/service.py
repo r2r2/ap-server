@@ -1,5 +1,4 @@
-from pydantic import (BaseModel, Json, conlist, constr, conint, EmailStr, validator, PositiveInt, NonNegativeInt,
-                      AnyUrl)
+from pydantic import BaseModel, Json, conlist, constr, conint, EmailStr, validator, PositiveInt, NonNegativeInt, AnyUrl
 from typing import Optional, Literal
 from datetime import datetime
 

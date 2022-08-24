@@ -1,4 +1,4 @@
-from typing import Union, List, Optional, Type
+from typing import Type
 from pydantic import BaseModel
 from sanic import Request
 from sanic.exceptions import NotFound
@@ -9,6 +9,7 @@ import settings
 from application.service.parking import ParkingTimeslotService
 from application.service.black_list import BlackListService
 from application.service.system_settings import SystemSettingsService
+from core.utils.limit_offset import get_limit_offset
 from core.dto import validate
 from core.server.auth import protect
 from core.dto.access import EntityId
@@ -26,8 +27,7 @@ from core.dto.service import (ClaimDto,
                               ParkingTimeslotDto,
                               InternationalPassportDto,
                               SystemSettingsDto)
-from infrastructure.database.models import (AbstractBaseModel,
-                                            SystemUser,
+from infrastructure.database.models import (SystemUser,
                                             Claim,
                                             Visitor,
                                             Passport,
@@ -42,7 +42,8 @@ from infrastructure.database.models import (AbstractBaseModel,
                                             ParkingTimeslot,
                                             InternationalPassport,
                                             SystemSettings,
-                                            ClaimWayApproval)
+                                            ClaimWayApproval,
+                                            MODEL)
 from application.service.base_service import BaseService
 from application.service.claim import ClaimService
 from application.service.visitor import (VisitorService,
@@ -59,24 +60,21 @@ from application.exceptions import InconsistencyError
 
 
 class BaseServiceController(HTTPMethodView):
-    enabled_scopes: Union[List[str], str]
+    enabled_scopes: list[str] | str
     target_route: str
-    target_service: BaseService
-    returned_model: AbstractBaseModel
-    post_dto: BaseModel
-    put_dto: BaseModel
+    target_service: Type[BaseService]
+    returned_model: Type[MODEL]
+    post_dto: Type[BaseModel]
+    put_dto: Type[BaseModel]
 
     @staticmethod
-    def validate(dto_type: BaseModel | Type[BaseModel], request: Request) -> BaseModel:
+    def validate(dto_type: BaseModel | Type[BaseModel], request: Request) -> Type[BaseModel]:
         return validate(dto_type, request)
 
     @protect(retrive_user=False)
-    async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+    async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
         if entity is None:
-            limit = request.args.get("limit")
-            offset = request.args.get("offset")
-            limit = int(limit) if limit and limit.isdigit() else None
-            offset = int(offset) if offset and offset.isdigit() else None
+            limit, offset = await get_limit_offset(request)
             models = await request.app.ctx.service_registry.get(self.target_service).read_all(limit, offset)
             return json([await model.values_dict() for model in models])
 
@@ -90,10 +88,6 @@ class BaseServiceController(HTTPMethodView):
     @protect()
     async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
         dto = self.validate(self.post_dto, request)
-        print("*" * 500)
-        print(request.json)
-        print(request.json.get("approved"))
-        print("*" * 500)
         service_name: BaseServiceController.target_service = request.app.ctx.service_registry.get(self.target_service)
         model = await service_name.create(system_user, dto)
         return json(await model.values_dict())
@@ -122,12 +116,9 @@ class ClaimController:
         post_dto = ClaimDto.CreationDto
 
         @protect(retrive_user=False)
-        async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+        async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
             if entity is None:
-                limit = request.args.get("limit")
-                offset = request.args.get("offset")
-                limit = int(limit) if limit and limit.isdigit() else None
-                offset = int(offset) if offset and offset.isdigit() else None
+                limit, offset = await get_limit_offset(request)
                 models = await request.app.ctx.service_registry.get(self.target_service).read_all(limit, offset)
                 return json([await model.values_dict(m2m_fields=True, fk_fields=True,
                                                      o2o_fields=True, backward_fk_fields=True) for model in models])
@@ -165,7 +156,7 @@ class ClaimController:
         post_dto = ClaimDto.GroupVisitDto
 
         @protect(retrive_user=False)
-        async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+        async def get(self, request: Request, entity: EntityId | None = None) -> HTTPResponse:
             with open(f"{settings.BASE_DIR}/static/sample_excel.txt", "rb") as f:
                 data = f.read().decode(encoding="utf-8")
                 return json(data)
@@ -208,7 +199,7 @@ class VisitorController:
         target_service = VisitorService
 
         @protect(retrive_user=False)
-        async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+        async def get(self, request: Request, entity: EntityId | None = None) -> HTTPResponse:
             visit_info = await request.app.ctx.service_registry.get(self.target_service).get_info_about_current_visit(
                 entity)
             return json(visit_info)
@@ -309,6 +300,28 @@ class PassController:
         target_service = PassService
         put_dto = PassDto.UpdateDto
 
+    class QRcode(BaseServiceController):
+        target_route = "/passes/<entity:int>/qr-code"
+        enabled_scopes = ["root", "Администратор"]
+        target_service = PassService
+
+        @protect()
+        async def post(self, request: Request, system_user: SystemUser, entity: EntityId) -> HTTPResponse:
+            service_name: PassService = request.app.ctx.service_registry.get(self.target_service)
+            model = await service_name.create_qr_code(system_user, entity)
+            return json(model)
+
+    class BARcode(BaseServiceController):
+        target_route = "/passes/<entity:int>/bar-code"
+        enabled_scopes = ["root", "Администратор"]
+        target_service = PassService
+
+        @protect()
+        async def post(self, request: Request, system_user: SystemUser, entity: EntityId) -> HTTPResponse:
+            service_name: PassService = request.app.ctx.service_registry.get(self.target_service)
+            model = await service_name.create_barcode(system_user, entity)
+            return json(model)
+
 
 class TransportController:
     returned_model = Transport
@@ -403,7 +416,7 @@ class SystemSettingsController(BaseServiceController):
 
     @protect()
     async def put(self, request: Request, system_user: SystemUser) -> HTTPResponse:
-        dto = self.validate(self.put_dto, request)  # type: ignore
+        dto = self.validate(self.put_dto, request)
         service_name: SystemSettingsService = request.app.ctx.service_registry.get(self.target_service)
         model = await service_name.update(system_user, dto)  # type: ignore
         return json(await model.values_dict())

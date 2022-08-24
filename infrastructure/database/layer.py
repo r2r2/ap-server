@@ -1,18 +1,18 @@
 from datetime import datetime
-from typing import Type, List, Union
+from typing import Type
 from tortoise.expressions import Q
 from tortoise.fields import Field
 from tortoise.fields.relational import RelationalField
 from tortoise.queryset import QuerySetSingle, QuerySet
 
 from core.dto.access import EntityId
-from infrastructure.database.models import SystemUserSession, SystemUser, AbstractBaseModel
+from infrastructure.database.models import SystemUserSession, SystemUser, MODEL
 
 
 class SystemUserDbLayer:
 
     @staticmethod
-    async def get_user_scopes(user_id: EntityId) -> Union[List[str], None]:
+    async def get_user_scopes(user_id: EntityId) -> list[str] | None:
         """
         :param
         :param
@@ -39,14 +39,11 @@ class SystemUserDbLayer:
 
     @staticmethod
     async def get_session_id(user_id: int, agent: str):
-        from tortoise.functions import Max
         sessions = await SystemUserSession.filter(user_id=user_id, user_agent=agent)
         need_id = sessions[-1].id
         for ses in sessions:
             if ses.id != need_id:
                 await ses.delete()
-        # if len(session) > 1:
-        #     logger.warning(Max("last_activity"))
         return need_id
 
     @staticmethod
@@ -91,12 +88,12 @@ class DbLayer(SystemUserDbLayer):
         pass
 
     @staticmethod
-    async def extract_relatable_fields(model: AbstractBaseModel) -> List[str]:
+    async def extract_relatable_fields(model: Type[MODEL]) -> list[str]:
         return [field for field, sheme in model._meta.fields_map.items() if
                 sheme.__class__.__base__ == RelationalField]
 
     @staticmethod
-    async def contains_by_id(model: Type[AbstractBaseModel], _id: int) -> bool:
+    async def contains_by_id(model: Type[MODEL], _id: int) -> bool:
         # TODO: Add docks
         """
         :param
@@ -108,7 +105,7 @@ class DbLayer(SystemUserDbLayer):
         return await model.exists(id=_id)
 
     @staticmethod
-    async def contains_by_kwargs(model: Type[AbstractBaseModel], **kwargs) -> bool:
+    async def contains_by_kwargs(model: Type[MODEL], **kwargs) -> bool:
         # TODO: Add docks
         """
         :param
@@ -120,8 +117,8 @@ class DbLayer(SystemUserDbLayer):
         return await model.exists(**kwargs)
 
     @staticmethod
-    async def get_optional_view(model: Type[AbstractBaseModel], _id: Union[int, List[int]],
-                                columns: List[Field] = None) -> Union[AbstractBaseModel, List[AbstractBaseModel], None]:
+    async def get_optional_view(model: Type[MODEL], _id: int | list[int],
+                                columns: list[Field] = None) -> MODEL | list[MODEL] | None:
         # TODO: Add docks
         """
         :param
@@ -138,7 +135,7 @@ class DbLayer(SystemUserDbLayer):
             related = await DbLayer.extract_relatable_fields(model)
             return await query.prefetch_related(*related)
         else:
-            cols: List[str] = [col.model_field_name for col in columns]
+            cols: list[str] = [col.model_field_name for col in columns]
             rows = await query.values(*cols)
             if isinstance(rows, list):
                 return [model(**row) for row in rows]

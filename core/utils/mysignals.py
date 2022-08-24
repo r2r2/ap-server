@@ -5,6 +5,8 @@ from tortoise.signals import post_save
 from sanic import Sanic
 
 import settings
+from application.service.asbp_archive import ArchiveController
+from application.service.web_push import WebPushController
 from core.server.controllers import BaseAccessController
 from core.server.routes import BaseServiceController
 from core.server.sse_monitoring import StrangerThingsEventsController, StrangerThingsController
@@ -33,7 +35,15 @@ class MySignalHandler:
                 setattr(controller, "enabled_scopes", context["scopes"])
                 return
 
-        for controller in (StrangerThingsEventsController, StrangerThingsController):
+        controllers = (
+            StrangerThingsEventsController,
+            StrangerThingsController,
+            ArchiveController,
+            WebPushController.Subscription,
+            WebPushController.NotifyAll,
+        )
+
+        for controller in controllers:
             setattr(controller, "enabled_scopes", context["scopes"])
             return
 

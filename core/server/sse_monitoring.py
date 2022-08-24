@@ -5,7 +5,6 @@ from aioredis.client import PubSub
 from aioredis import Redis
 from sanic.views import HTTPMethodView
 from sanic import Sanic, Request, HTTPResponse, json
-from typing import Optional, Union, List
 from sanic.response import ResponseStream
 from sanic.exceptions import NotFound
 from pydantic import BaseModel
@@ -16,6 +15,7 @@ from infrastructure.database.models import StrangerThings, SystemUser
 from infrastructure.database.layer import DbLayer
 from core.server.auth import protect
 from core.utils.loggining import logger
+from core.utils.limit_offset import get_limit_offset
 from core.dto.access import EntityId
 
 
@@ -122,12 +122,9 @@ class StrangerThingsController(HTTPMethodView):
     enabled_scopes = ["Сотрудник службы безопасности"]
 
     @protect()
-    async def get(self, request: Request, system_user: SystemUser, entity: Optional[EntityId] = None) -> HTTPResponse:
+    async def get(self, request: Request, system_user: SystemUser, entity: EntityId = None) -> HTTPResponse:
         if entity is None:
-            limit = request.args.get("limit")
-            offset = request.args.get("offset")
-            limit = int(limit) if limit and limit.isdigit() else None
-            offset = int(offset) if offset and offset.isdigit() else None
+            limit, offset = await get_limit_offset(request)
             models = await self.read_all(limit, offset)
             return json([await model.values_dict(m2m_fields=True) for model in models])
 
@@ -138,18 +135,14 @@ class StrangerThingsController(HTTPMethodView):
             raise NotFound()
 
     async def read_all(self,
-                       limit: int = None,
-                       offset: int = None) -> Union[List[StrangerThings], StrangerThings]:
-        related_fields = await DbLayer.extract_relatable_fields(self.target_model)  # type: ignore
+                       limit: int = 0,
+                       offset: int = 0) -> list[StrangerThings] | StrangerThings:
+        related_fields = await DbLayer.extract_relatable_fields(self.target_model)
         query = self.target_model.all().prefetch_related(*related_fields)
-        if limit:
-            query = query.limit(limit)
-        if offset:
-            query = query.offset(offset)
-        return await query
+        return await query.limit(limit).offset(offset)
 
     async def read(self, _id: EntityId) -> StrangerThings:
-        related_fields = await DbLayer.extract_relatable_fields(self.target_model)  # type: ignore
+        related_fields = await DbLayer.extract_relatable_fields(self.target_model)
         return await self.target_model.get_or_none(id=_id).prefetch_related(*related_fields)
 
     @protect()

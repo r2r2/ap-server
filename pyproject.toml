@@ -14,7 +14,7 @@ name = ""
 version = ""
 description = ""
 authors = [
-    {name = "", email = "info@a-bt.ru"}
+    {name = "", email = "info@a-bt.ru"},
 ]
 dependencies = [
     "aerich==0.6.3",
@@ -29,6 +29,7 @@ dependencies = [
     "attrs==21.4.0",
     "billiard==3.6.4.0",
     "celery==5.2.7",
+    "celery-redbeat==2.0.0",
     "certifi==2022.6.15",
     "cffi==1.15.1",
     "click==8.1.2",
@@ -73,7 +74,6 @@ dependencies = [
     "python-dotenv==0.20.0",
     "pytz==2022.1",
     "pyyaml==6.0",
-    "pywebpush>=1.14.0",
     "redis==4.3.4",
     "rfc3986==1.5.0",
     "sanic==22.6.1",
@@ -98,11 +98,9 @@ dependencies = [
     "pandas>=1.4.3",
     "xlrd>=2.0.1",
     "openpyxl>=3.0.10",
-    "celery-redbeat>=2.0.0",
-    "cryptography>=37.0.4",
-    "http-ece>=1.1.0",
-    "py-vapid>=1.8.2",
-    "requests>=2.28.1",
+    "pywebpush>=1.14.0",
+    "qrcode>=7.3.1",
+    "python-barcode>=0.14.0",
 ]
 requires-python = ">=3.10"
 license = {text = "MIT"}

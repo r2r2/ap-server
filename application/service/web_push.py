@@ -1,4 +1,5 @@
 from pywebpush import webpush, WebPushException
+from sanic.exceptions import NotFound
 from sanic.views import HTTPMethodView
 from sanic import Sanic, Request, HTTPResponse, json
 from tortoise.transactions import atomic
@@ -9,6 +10,7 @@ from application.exceptions import InconsistencyError
 from infrastructure.database.models import PushSubscription, SystemUser
 from core.server.auth import protect
 from core.utils.loggining import logger
+from core.utils.limit_offset import get_limit_offset
 from core.utils.orjson_default import odumps
 from core.dto.access import EntityId
 from core.dto.validator import validate
@@ -20,18 +22,21 @@ class WebPushController:
         enabled_scopes = ["Сотрудник службы безопасности"]
         post_dto = WebPush.SubscriptionDto
 
+        @protect(retrive_user=False)
+        async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
+            if entity is None:
+                limit, offset = await get_limit_offset(request)
+                models = PushSubscription.all().limit(limit).offset(offset)
+                return json([await model.values_dict() for model in await models])
+
+            if model := await PushSubscription.get_or_none(id=entity):
+                return json(await model.values_dict(fk_fields=True))
+            else:
+                raise NotFound()
+
         @protect()
         async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
             dto = validate(self.post_dto, request)
-            """
-            {
-                "endpoint": "http://localhost",
-                "keys": {
-                    "p256dh": "BDu6tBfNIhThUj5epb8P9nvQsuMQuF_7C8PeKPtW_GPM6nzHTyHLuuRm0_cMdLYZDhWXIsECK-9CXZB6i_s6BOA",
-                    "auth": "OX_52Uf3XDjjuHbJHIP7wXKXu_u56Y_K5ZoffhiZR3c"
-                }
-            }
-            """
             db = connections.get(settings.CONNECTION_NAME)
             subscription, _ = await PushSubscription.get_or_create(system_user=system_user,
                                                                    subscription_info=dto.dict(),
@@ -44,6 +49,11 @@ class WebPushController:
                 }
             })
 
+        @protect()
+        async def delete(self, request: Request, user: EntityId, entity: EntityId = None) -> HTTPResponse:
+            await WebPushController.Subscription.delete_subscription(entity)
+            return json({"message": f"Subscription id={entity} has been deleted from DB."})
+
         @staticmethod
         @atomic(settings.CONNECTION_NAME)
         async def delete_subscription(sub_id: EntityId) -> None:
@@ -52,32 +62,6 @@ class WebPushController:
                 raise InconsistencyError(message=f"There is no subscription with id={sub_id}.")
             await subscription.delete()
             logger.info(f"Subscription id={sub_id} has been deleted from DB.")
-
-    # class NotifySingle(HTTPMethodView):
-    #     """Send notification for current user."""
-    #     enabled_scopes = ["Сотрудник службы безопасности"]
-    #
-    #     @protect()
-    #     async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
-    #         # json_data = request.json['subscription_info']
-    #         json_data = request.json
-    #         # subscription = {'subscription_info': json_data['subscription_info']}
-    #         # subscription = {'subscription_info': json_data}
-    #         # subscription = default_json.loads({'subscription_info': json_data})
-    #         subscription = request.json
-    #         print("notify_signle: {}".format(subscription))
-    #         title = "Yay!"
-    #         body = "Mary had a little lamb, with a nice mint jelly"
-    #         results = await WebPushController.trigger_push_notification(
-    #             subscription,
-    #             title,
-    #             body,
-    #             system_user
-    #         )
-    #         return json({
-    #             "status": "success",
-    #             "result": results
-    #         })
 
     class NotifyAll(HTTPMethodView):
         enabled_scopes = ["Сотрудник службы безопасности"]
@@ -138,6 +122,6 @@ class WebPushController:
 
 
 def init_web_push(app: Sanic) -> None:
-    app.add_route(WebPushController.Subscription.as_view(), "/wp/subscription", methods=["POST"])
+    app.add_route(WebPushController.Subscription.as_view(), "/wp/subscription", methods=["POST", "GET"])
+    app.add_route(WebPushController.Subscription.as_view(), "/wp/subscription/<entity:int>", methods=["GET"])
     app.add_route(WebPushController.NotifyAll.as_view(), "/wp/notify-all", methods=["POST"])
-    # app.add_route(WebPushController.NotifySingle.as_view(), "/wp/notify-single", methods=["POST"])

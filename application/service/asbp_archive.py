@@ -1,4 +1,3 @@
-from typing import Union, Optional
 from itertools import zip_longest
 from sanic import Sanic, Request, HTTPResponse, json
 from sanic.views import HTTPMethodView
@@ -12,25 +11,17 @@ from infrastructure.database.models import SystemUser, Visitor, Pass
 from infrastructure.asbp_archive.models import Archive
 from core.server.auth import protect
 from core.dto.access import EntityId
+from core.utils.limit_offset import get_limit_offset
 
 
 class ArchiveController(HTTPMethodView):
     enabled_scopes = ["root", "Администратор"]
 
     @protect(retrive_user=False)
-    async def get(self, request: Request, entity: Optional[EntityId] = None) -> HTTPResponse:
+    async def get(self, request: Request, entity: EntityId = None) -> HTTPResponse:
         if entity is None:
-            limit = request.args.get("limit")
-            offset = request.args.get("offset")
-            limit = int(limit) if limit and limit.isdigit() else None
-            offset = int(offset) if offset and offset.isdigit() else None
-
-            query = Archive.all()
-            if limit:
-                query = query.limit(limit)
-            if offset:
-                query = query.offset(offset)
-
+            limit, offset = await get_limit_offset(request)
+            query = Archive.all().limit(limit).offset(offset)
             return json([await model.values_dict() for model in await query])
 
         if model := await Archive.get_or_none(id=entity):
@@ -64,19 +55,19 @@ class ArchiveController(HTTPMethodView):
         return False
 
     @staticmethod
-    async def collect_visitors(time_delta: datetime) -> Union[list[Visitor], None]:
+    async def collect_visitors(time_delta: datetime) -> list[Visitor] | None:
         visitors = await Visitor.filter(modified_at__lte=time_delta, deleted=True)
         return visitors
 
     @staticmethod
-    async def collect_passes(time_delta: datetime) -> Union[list[Pass], None]:
+    async def collect_passes(time_delta: datetime) -> list[Pass] | None:
         passes = await Pass.filter(modified_at__lte=time_delta, valid_till_date__lte=time_delta)
         return passes
 
     @staticmethod
     @atomic(settings.CONNECTION_NAME_ARCHIVE)
-    async def archive_data(visitors: Union[list[Visitor], None],
-                           passes: Union[list[Pass], None]) -> None:
+    async def archive_data(visitors: list[Visitor] | None,
+                           passes: list[Pass] | None) -> None:
         """Creating a new entry in Archive DB."""
         for visitor, pass_id in list(zip_longest(visitors, passes)):
             await Archive.create(
@@ -89,13 +80,13 @@ class ArchiveController(HTTPMethodView):
 
     @staticmethod
     @atomic(settings.CONNECTION_NAME)
-    async def delete_old(visitors: Union[list[Visitor], None],
-                         passes: Union[list[Pass], None]) -> None:
+    async def delete_old(visitors: list[Visitor] | None,
+                         passes: list[Pass] | None) -> None:
         """Deleting data, which was archived, from main DB."""
         [await visitor.delete() for visitor in visitors]
         [await pass_id.delete() for pass_id in passes]
 
 
-def init_archive_routes(app: Sanic):
+def init_archive_routes(app: Sanic) -> None:
     app.add_route(ArchiveController.as_view(), "/archive", methods=["GET", "POST"])
     app.add_route(ArchiveController.as_view(), "/archive/<entity:int>", methods=["GET"])

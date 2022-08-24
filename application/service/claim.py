@@ -3,8 +3,6 @@ import pandas as pd
 from itertools import zip_longest
 from io import BytesIO
 from datetime import datetime, timedelta
-
-from application.service.web_push import WebPushController
 from dateutil.parser import parse
 from typing import Union
 from tortoise.transactions import atomic
@@ -20,6 +18,7 @@ from infrastructure.database.models import (SystemUser,
                                             BlackList, PushSubscription)
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
+from application.service.web_push import WebPushController
 from core.dto.access import EntityId
 from core.dto.service import ClaimDto, EmailStruct, VisitorDto
 from core.communication.event import NotifyUsersInClaimWayEvent, NotifyUsersInClaimWayBeforeNminutesEvent, Event
@@ -120,7 +119,7 @@ class ClaimService(BaseService):
                                    claim=claim.id,
                                    claim_way_2=claim_way_2)
         # Send web push notifications
-        subscriptions = await PushSubscription.filter(system_user__id__in=system_users)
+        subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in system_users])
         await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, subject, text)
 
         return email_struct
@@ -170,7 +169,7 @@ class ClaimService(BaseService):
             if pass_id is not None:
                 raise InconsistencyError(message=f"You can't assign Pass to Claim if claim has ClaimWay to approve. "
                                                  f"First claim should be approved.")
-            claim = await Claim.create(**kwrgs, claim_way=claim_way, claim_way_2=claim_way2)
+            claim = await Claim.create(**kwrgs, claim_way=claim_way, claim_way_2=claim_way2, system_user=system_user)
             await self.create_claimway_approval(claim_way, claim, claim_way2)
 
             if claim_way2:
@@ -179,13 +178,13 @@ class ClaimService(BaseService):
             self.notify(await self.EventName.notify_claim_way(claim_way, claim))
             self.notify(await self.EventName.time_before_for_claim_way(claim_way, claim))
         else:
-            claim = await Claim.create(**kwrgs, pass_id=pass_id)
+            claim = await Claim.create(**kwrgs, pass_id=pass_id, system_user=system_user)
         return claim
 
     @atomic(settings.CONNECTION_NAME)
     async def update(self, system_user: SystemUser, entity_id: EntityId, dto: ClaimDto.UpdateDto) -> Claim:
         notification_counter = 0
-        claim: Claim = await self.read(entity_id)  # type: ignore
+        claim: Claim = await self.read(entity_id)
         if claim is None:
             raise InconsistencyError(message=f"Claim with id={entity_id} does not exist.")
 
@@ -236,6 +235,7 @@ class ClaimService(BaseService):
 
         setattr(claim, "pass_type", getattr(dto, "pass_type", claim.pass_type))
         setattr(claim, "information", getattr(dto, "information", claim.information))
+        setattr(claim, "system_user", system_user)
 
         if dto.status:
             setattr(claim, "status", dto.status)

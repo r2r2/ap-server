@@ -103,4 +103,4 @@ venv.bak/
 # Cython debug symbols
 cython_debug/
 
-!/infrastructure/database/migrations/asbp/
+infrastructure/database/migrations/
