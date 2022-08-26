@@ -2,9 +2,7 @@ import base64
 import pandas as pd
 from itertools import zip_longest
 from io import BytesIO
-from datetime import datetime, timedelta
 from dateutil.parser import parse
-from typing import Union
 from tortoise.transactions import atomic
 from tortoise.queryset import Q
 
@@ -15,128 +13,79 @@ from infrastructure.database.models import (SystemUser,
                                             Pass,
                                             ClaimWayApproval,
                                             Visitor,
-                                            BlackList, PushSubscription)
+                                            BlackList,
+                                            PushSubscription)
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
-from application.service.web_push import WebPushController
 from core.dto.access import EntityId
-from core.dto.service import ClaimDto, EmailStruct, VisitorDto
-from core.communication.event import NotifyUsersInClaimWayEvent, NotifyUsersInClaimWayBeforeNminutesEvent, Event
+from core.dto.service import ClaimDto, EmailStruct, VisitorDto, WebPush
+from core.communication.celery.sending_emails import create_email_struct
+from core.communication.event import (NotifyUsersInClaimWayEvent,
+                                      NotifyUsersInClaimWayBeforeNminutesEvent,
+                                      Event,
+                                      SendWebPushEvent)
 from core.plugins.plugins_wrap import AddPlugins
 
 
 class ClaimService(BaseService):
     target_model = Claim
 
-    class EventName:
-        @staticmethod
-        async def time_before_for_claim_way_2(claim_way2: ClaimWay, claim: Claim) -> Event:
-            """Notify SystemUsers before N minutes in Claim.claim_way_2"""
-            return NotifyUsersInClaimWayBeforeNminutesEvent(
-                await ClaimService.build_email_struct(claim_way2, claim=claim, claim_way_2=True, time_before=True))
+    async def time_before_for_claim_way_2(self, claim_way2: ClaimWay, claim: Claim) -> Event:
+        """Notify SystemUsers before N minutes in Claim.claim_way_2"""
+        return NotifyUsersInClaimWayBeforeNminutesEvent(
+            await self.get_email_struct(claim_way2, claim=claim, claim_way_2=True, time_before=True))
 
-        @staticmethod
-        async def notify_claim_way_2(claim_way: ClaimWay, claim: Claim) -> Event:
-            """Notify SystemUsers in Claim.claim_way_2"""
-            return NotifyUsersInClaimWayEvent(
-                await ClaimService.build_email_struct(claim_way, claim=claim, claim_way_2=True))
+    async def notify_claim_way_2(self, claim_way: ClaimWay, claim: Claim) -> Event:
+        """Notify SystemUsers in Claim.claim_way_2"""
+        return NotifyUsersInClaimWayEvent(
+            await self.get_email_struct(claim_way, claim=claim, claim_way_2=True))
 
-        @staticmethod
-        async def status_changed_claim_way_2(claim_way2: ClaimWay, claim: Claim, status: str) -> Event:
-            """Notify SystemUsers in Claim.claim_way_2 about changing status in Claim.status"""
-            return NotifyUsersInClaimWayEvent(
-                await ClaimService.build_email_struct(claim_way2, claim=claim, status=status, claim_way_2=True))
+    async def status_changed_claim_way_2(self, claim_way2: ClaimWay, claim: Claim, status: str) -> Event:
+        """Notify SystemUsers in Claim.claim_way_2 about changing status in Claim.status"""
+        return NotifyUsersInClaimWayEvent(
+            await self.get_email_struct(claim_way2, claim=claim, status=status, claim_way_2=True))
 
-        @staticmethod
-        async def claim_approved_claim_way_2(claim_way2: ClaimWay, claim: Claim) -> Event:
-            """Notify SystemUsers in Claim.claim_way_2 when Claim.approved==True"""
-            return NotifyUsersInClaimWayEvent(
-                await ClaimService.build_email_struct(claim_way2, claim=claim, claim_way_2=True, approved=True))
+    async def claim_approved_claim_way_2(self, claim_way2: ClaimWay, claim: Claim) -> Event:
+        """Notify SystemUsers in Claim.claim_way_2 when Claim.approved==True"""
+        return NotifyUsersInClaimWayEvent(
+            await self.get_email_struct(claim_way2, claim=claim, claim_way_2=True, approved=True))
 
-        @staticmethod
-        async def time_before_for_claim_way(claim_way: ClaimWay, claim: Claim) -> Event:
-            """Notify SystemUsers before N minutes in Claim.claim_way"""
-            return NotifyUsersInClaimWayBeforeNminutesEvent(
-                await ClaimService.build_email_struct(claim_way, claim=claim, time_before=True))
+    async def time_before_for_claim_way(self, claim_way: ClaimWay, claim: Claim) -> Event:
+        """Notify SystemUsers before N minutes in Claim.claim_way"""
+        return NotifyUsersInClaimWayBeforeNminutesEvent(
+            await self.get_email_struct(claim_way, claim=claim, time_before=True))
 
-        @staticmethod
-        async def notify_claim_way(claim_way: ClaimWay, claim: Claim) -> Event:
-            """Notify SystemUsers in Claim.claim_way"""
-            return NotifyUsersInClaimWayEvent(await ClaimService.build_email_struct(claim_way, claim=claim))
+    async def notify_claim_way(self, claim_way: ClaimWay, claim: Claim) -> Event:
+        """Notify SystemUsers in Claim.claim_way"""
+        return NotifyUsersInClaimWayEvent(await self.get_email_struct(claim_way, claim=claim))
 
-        @staticmethod
-        async def status_changed_claim_way(claim_way: ClaimWay, claim: Claim, status: str) -> Event:
-            """Notify SystemUsers in Claim.claim_way about changing status in Claim.status"""
-            return NotifyUsersInClaimWayEvent(
-                await ClaimService.build_email_struct(claim_way, claim=claim, status=status))
+    async def status_changed_claim_way(self, claim_way: ClaimWay, claim: Claim, status: str) -> Event:
+        """Notify SystemUsers in Claim.claim_way about changing status in Claim.status"""
+        return NotifyUsersInClaimWayEvent(
+            await self.get_email_struct(claim_way, claim=claim, status=status))
 
-        @staticmethod
-        async def claim_approved_claim_way(claim_way: ClaimWay, claim: Claim) -> Event:
-            """Notify SystemUsers in Claim.claim_way when Claim.approved==True"""
-            return NotifyUsersInClaimWayEvent(
-                await ClaimService.build_email_struct(claim_way, claim=claim, approved=True))
+    async def claim_approved_claim_way(self, claim_way: ClaimWay, claim: Claim) -> Event:
+        """Notify SystemUsers in Claim.claim_way when Claim.approved==True"""
+        return NotifyUsersInClaimWayEvent(
+            await self.get_email_struct(claim_way, claim=claim, approved=True))
 
-    @staticmethod
-    async def build_email_struct(claim_way: ClaimWay,
-                                 claim: Claim,
-                                 claim_way_2: bool = False,
-                                 approved: bool = False,
-                                 time_before: bool = False,
-                                 status: str = None) -> EmailStruct:
+    async def get_email_struct(self,
+                               claim_way: ClaimWay,
+                               claim: Claim,
+                               claim_way_2: bool = False,
+                               approved: bool = False,
+                               time_before: bool = False,
+                               status: str = None) -> EmailStruct:
         """Collect system_users from ClaimWay and build EmailStruct"""
-        system_users = claim_way.__dict__.get('_system_users')
-
-        url = settings.CLAIMS_URL.format(claim=claim.id)
-        text = settings.CLAIMWAY_BODY_TEXT.format(claim=claim.id, url=url)
-        subject = settings.CLAIMWAY_SUBJECT_TEXT
-
-        time_to_send = time_to_expire = None
-        if time_before:
-            # Notify SystemUsers in ClaimWay before N minutes before Visitor come
-            if time_to_send_notify := await ClaimService.calculate_time_to_send_notify(claim):
-                time_to_send, time_to_expire = time_to_send_notify
-                visit_start_date = datetime.strftime(time_to_expire, settings.DATETIME_FORMAT)
-                text = settings.CLAIMWAY_BEFORE_N_MINUTES_BODY_TEXT.format(url=url, visit_start_date=visit_start_date)
-                subject = settings.CLAIMWAY_BEFORE_N_MINUTES_SUBJECT_TEXT.format(claim=claim.id)
-
-        if status:
-            # if status in claim was changed
-            text = settings.CLAIM_STATUS_BODY_TEXT.format(claim=claim.id, status=status)
-            subject = settings.CLAIM_STATUS_SUBJECT_TEXT.format(claim=claim.id)
-
-        if approved:
-            # when claim was approved
-            text = settings.CLAIM_APPROVED_BODY_TEXT.format(claim=claim.id, url=url)
-            subject = settings.CLAIM_APPROVED_SUBJECT_TEXT.format(claim=claim.id)
-
-        emails = [user.email for user in system_users]
-
-        email_struct = EmailStruct(email=emails,
-                                   text=text,
-                                   subject=subject,
-                                   time_to_send=time_to_send,
-                                   time_to_expire=time_to_expire,
-                                   claim=claim.id,
-                                   claim_way_2=claim_way_2)
+        email_struct, system_users = await create_email_struct(
+            claim_way, claim, claim_way_2, approved, time_before, status
+        )
         # Send web push notifications
         subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in system_users])
-        await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, subject, text)
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        self.notify(SendWebPushEvent(data=data))
 
         return email_struct
-
-    @staticmethod
-    async def calculate_time_to_send_notify(claim: Claim) -> Union[tuple[datetime, datetime], None]:
-        """
-        Calculating time for sending notification to users, who didn't approve claim.
-        Also, calc expire time for Celery task.
-        """
-        minutes: int = await settings.system_settings("claimway_before_n_minutes")
-
-        if time_to_expire := await Visitor.filter(claim=claim.id, deleted=False).first().values("visit_start_date"):
-            if time_to_expire["visit_start_date"]:
-                time_to_expire = time_to_expire["visit_start_date"].astimezone()
-                time_to_send = time_to_expire - timedelta(minutes=minutes)
-                return time_to_send, time_to_expire
 
     @atomic(settings.CONNECTION_NAME)
     async def create_claimway_approval(self,
@@ -173,10 +122,10 @@ class ClaimService(BaseService):
             await self.create_claimway_approval(claim_way, claim, claim_way2)
 
             if claim_way2:
-                self.notify(await self.EventName.time_before_for_claim_way_2(claim_way2, claim))
+                self.notify(await self.time_before_for_claim_way_2(claim_way2, claim))
 
-            self.notify(await self.EventName.notify_claim_way(claim_way, claim))
-            self.notify(await self.EventName.time_before_for_claim_way(claim_way, claim))
+            self.notify(await self.notify_claim_way(claim_way, claim))
+            self.notify(await self.time_before_for_claim_way(claim_way, claim))
         else:
             claim = await Claim.create(**kwrgs, pass_id=pass_id, system_user=system_user)
         return claim
@@ -197,14 +146,14 @@ class ClaimService(BaseService):
                 setattr(claim, field, claim_way)
 
                 if field == "claim_way":
-                    self.notify(await self.EventName.notify_claim_way(claim_way, claim))
-                    self.notify(await self.EventName.time_before_for_claim_way(claim_way, claim))
+                    self.notify(await self.notify_claim_way(claim_way, claim))
+                    self.notify(await self.time_before_for_claim_way(claim_way, claim))
                     notification_counter += 1
 
                 elif field == "claim_way_2":
                     if claim.claim_way_approved:
-                        self.notify(await self.EventName.notify_claim_way_2(claim_way, claim))
-                    self.notify(await self.EventName.time_before_for_claim_way_2(claim_way, claim))
+                        self.notify(await self.notify_claim_way_2(claim_way, claim))
+                    self.notify(await self.time_before_for_claim_way_2(claim_way, claim))
 
                 await self.create_claimway_approval(claim_way, claim)
 
@@ -244,12 +193,12 @@ class ClaimService(BaseService):
                 claim_way = await ClaimWay.get_or_none(id=claim.claim_way.id).prefetch_related("system_users")
 
                 if notification_counter == 0:
-                    self.notify(await self.EventName.status_changed_claim_way(claim_way, claim, dto.status))
+                    self.notify(await self.status_changed_claim_way(claim_way, claim, dto.status))
 
                 if claim.claim_way_2:
                     claim_way2 = await ClaimWay.get_or_none(id=claim.claim_way_2.id).prefetch_related("system_users")
                     if claim.claim_way_approved:
-                        self.notify(await self.EventName.status_changed_claim_way_2(claim_way2, claim, dto.status))
+                        self.notify(await self.status_changed_claim_way_2(claim_way2, claim, dto.status))
         await claim.save()
         return claim
 
@@ -313,20 +262,20 @@ class ClaimService(BaseService):
                 )
                 if not claim.claim_way_2_notified and users_in_claim_way_2_not_approve:
                     # Notifying users in claim_way_2 only once
-                    self.notify(await self.EventName.notify_claim_way_2(claim_way2, claim))
+                    self.notify(await self.notify_claim_way_2(claim_way2, claim))
                     setattr(claim, "claim_way_2_notified", True)
 
                 if len(users_in_claim_way_2_not_approve) == 0:
                     setattr(claim, "approved", True)
                     setattr(claim, "status", "Отработана")
-                    self.notify(await self.EventName.claim_approved_claim_way_2(claim_way2, claim))
-                    self.notify(await self.EventName.claim_approved_claim_way(claim_way, claim))
+                    self.notify(await self.claim_approved_claim_way_2(claim_way2, claim))
+                    self.notify(await self.claim_approved_claim_way(claim_way, claim))
                 else:
                     setattr(claim, "approved", False)
             else:
                 setattr(claim, "approved", True)
                 setattr(claim, "status", "Отработана")
-                self.notify(await self.EventName.claim_approved_claim_way(claim_way, claim))
+                self.notify(await self.claim_approved_claim_way(claim_way, claim))
         else:
             setattr(claim, "claim_way_approved", False)
             setattr(claim, "approved", False)

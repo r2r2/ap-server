@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union
 
-from core.dto.service import EmailStruct
+from core.dto.service import EmailStruct, WebPush
 
 
 class Event:
@@ -96,3 +96,20 @@ class MaxParkingTimeHoursExceededEvent(Event):
 
     async def extract_time(self):
         return self._data.pop("time_to_send")
+
+
+class SendWebPushEvent(Event):
+    name = "webpush_event"
+    _data: WebPush.ToCelery
+
+    def __init__(self, data: WebPush.ToCelery):
+        self._data = data
+        self._description = "Sending Web Push notifications."
+        super().__init__()
+
+    async def to_celery(self) -> WebPush.ToCelery:
+        return self._data
+
+    async def to_dict(self) -> dict:
+        return self._data.dict()
+

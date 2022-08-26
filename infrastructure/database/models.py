@@ -346,7 +346,7 @@ class Claim(AbstractBaseModel, TimestampMixin):
 
 class Pass(AbstractBaseModel, TimestampMixin):
     """Пропуск"""
-    rfid = fields.BigIntField(null=True, index=True, unique=True)
+    rfid = fields.CharField(max_length=255, null=True, index=True, unique=True)
     pass_type = fields.CharField(max_length=64, description='Тип пропуска (бумажный/карта/лицо)')
     valid_till_date = fields.DatetimeField(description='До какого числа действует пропуск')
     valid = fields.BooleanField(default=True, description='Пропуск действителен?')

@@ -104,7 +104,9 @@ class WebPushController:
                 subscription_info=sub.subscription_info,
                 data=odumps({"title": title, "body": body}),
                 vapid_private_key=settings.VAPID_PRIVATE_KEY,
-                vapid_claims=settings.VAPID_CLAIMS
+                vapid_claims={
+                    "sub": f"{settings.VAPID_CLAIM_EMAIL}"
+                }
             )
             return response.ok
         except WebPushException as ex:

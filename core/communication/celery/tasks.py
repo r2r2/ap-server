@@ -5,11 +5,12 @@ from celery import Task
 from celery.worker.request import Request
 
 from application.service.asbp_archive import ArchiveController
+from application.service.web_push import WebPushController
 from application.service.parking import ParkingTimeslotService
 from core.utils.loggining import logger
 from core.communication.celery.celery_ import celery
 from core.communication.celery.sending_emails import _send_email
-from core.dto.service import EmailStruct
+from core.dto.service import EmailStruct, WebPush
 from infrastructure.database.models import SystemUser, Claim, ClaimWay, ParkingTimeslot
 
 
@@ -103,3 +104,11 @@ def parking_time_exceeded(data: dict[str, Union[str, int]]) -> None:
             await ParkingTimeslotService.create_strangerthings_sse_event(data)
 
     asyncio.get_event_loop().run_until_complete(check_if_transport_leave())
+
+
+@celery.task(base=MyTask, name="~Web Push~")
+def send_webpush(data: WebPush.ToCelery) -> None:
+    """Sending web push notifications."""
+    asyncio.get_event_loop().run_until_complete(
+        WebPushController.trigger_push_notifications_for_subscriptions(data.subscriptions, data.title, data.body)
+    )

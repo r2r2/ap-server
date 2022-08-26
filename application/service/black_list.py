@@ -2,33 +2,23 @@ from tortoise.transactions import atomic
 
 import settings
 from core.dto.access import EntityId
-from core.dto.service import BlackListDto, EmailStruct
-from core.communication.event import NotifyVisitorInBlackListEvent
+from core.dto.service import BlackListDto, EmailStruct, WebPush
+from core.communication.event import NotifyVisitorInBlackListEvent, SendWebPushEvent
+from core.communication.celery.sending_emails import create_email_struct_for_sec_officers
 from infrastructure.database.models import BlackList, AbstractBaseModel, Visitor, SystemUser, PushSubscription
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
-from application.service.web_push import WebPushController
 
 
 class BlackListService(BaseService):
     target_model = BlackList
 
-    @staticmethod
-    async def collect_target_users(visitor: Visitor, user: SystemUser) -> EmailStruct:
-        # TODO do something or make sure Role.get(id=4) == 'Сотрудник службы безопасности'
-        security_officers = await SystemUser.filter(scopes=4)
-
-        subject = settings.BLACKLIST_NOTIFICATION_SUBJECT_TEXT
-        text = settings.BLACKLIST_NOTIFICATION_BODY_TEXT.format(user=user, visitor=visitor)
-        emails = [user.email for user in security_officers]
-
-        email_struct = EmailStruct(email=emails,
-                                   text=text,
-                                   subject=subject)
+    async def collect_target_users(self, visitor: Visitor, user: SystemUser) -> EmailStruct:
+        email_struct, security_officers = await create_email_struct_for_sec_officers(visitor, user)
         # Send web push notifications
         subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in security_officers])
-        await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, subject, text)
-
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        self.notify(SendWebPushEvent(data=data))
         return email_struct
 
     @atomic(settings.CONNECTION_NAME)

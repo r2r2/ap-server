@@ -37,7 +37,6 @@ class ServiceRegistry:
             BlackListService: BlackListService(self.db_manager, emitter),
             VisitorPhotoService: VisitorPhotoService(self.db_manager, emitter),
             WaterMarkService: WaterMarkService(self.db_manager, emitter),
-            # AcquireParkingIntervalService: AcquireParkingIntervalService(self.db_manager, emitter),
             ParkingTimeslotService: ParkingTimeslotService(self.db_manager, emitter),
             InternationalPassportService: InternationalPassportService(self.db_manager, emitter),
             SystemSettingsService: SystemSettingsService(self.db_manager, emitter),

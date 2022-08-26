@@ -4,7 +4,7 @@ from datetime import datetime
 
 import settings
 from core.dto.access import EntityId
-from infrastructure.database.models import WatermarkPosition
+from infrastructure.database.models import WatermarkPosition, PushSubscription
 
 
 class EmailStruct(BaseModel):
@@ -33,8 +33,14 @@ class WebPush:
     class SubscriptionDto(BaseModel):
         endpoint: AnyUrl
         keys: dict[Literal["p256dh", "auth"], str]
+        expiration_time: str | None
 
     class NotifyAllDto(BaseModel):
+        title: str
+        body: str
+
+    class ToCelery(BaseModel):
+        subscriptions: list
         title: str
         body: str
 
@@ -239,15 +245,15 @@ class MilitaryIdDto:
 
 class PassDto:
     class CreationDto(BaseModel):
-        rfid: Optional[int]
+        rfid: constr(min_length=1) | None
         pass_type: constr(min_length=1)
         valid_till_date: str
-        valid: Optional[bool] = True
+        valid: bool | None = True
 
     class UpdateDto(BaseModel):
-        rfid: Optional[int]
-        pass_type: Optional[constr(min_length=1)]
-        valid_till_date: Optional[str]
+        rfid: constr(min_length=1) | None
+        pass_type: constr(min_length=1) | None
+        valid_till_date: str | None
         valid: bool
 
 

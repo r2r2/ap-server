@@ -1,19 +1,21 @@
 import base64
 import qrcode
+import itertools
 from barcode import Code128
 from barcode.writer import SVGWriter
 from datetime import datetime
-from random import randint
 from io import BytesIO
 from typing import Type
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from tortoise import exceptions
 from tortoise.transactions import atomic
-from tortoise.queryset import Q
 from pydantic import BaseModel
 
 import settings
-from core.communication.event import NotifyVisitorInBlackListEvent
+from core.communication.celery.sending_emails import create_email_struct_for_sec_officers, create_email_struct
+from core.communication.event import (NotifyVisitorInBlackListEvent,
+                                      SendWebPushEvent,
+                                      NotifyUsersInClaimWayBeforeNminutesEvent)
 from core.dto.access import EntityId
 from core.dto.service import (VisitorDto,
                               PassportDto,
@@ -24,7 +26,9 @@ from core.dto.service import (VisitorDto,
                               TransportDto,
                               VisitorPhotoDto,
                               WaterMarkDto,
-                              InternationalPassportDto)
+                              InternationalPassportDto,
+                              WebPush,
+                              EmailStruct)
 from infrastructure.database.repository import EntityRepository
 from infrastructure.database.models import (Passport,
                                             Pass,
@@ -45,15 +49,38 @@ from infrastructure.database.models import (Passport,
                                             PushSubscription,
                                             MODEL)
 from application.exceptions import InconsistencyError
-from application.service.web_push import WebPushController
 from application.service.base_service import BaseService
-from application.service.claim import ClaimService
-from application.service.black_list import BlackListService
 from core.plugins.plugins_wrap import AddPlugins
 
 
 class VisitorService(BaseService):
     target_model = Visitor
+
+    async def collect_target_users(self, visitor: Visitor, user: SystemUser) -> EmailStruct:
+        email_struct, security_officers = await create_email_struct_for_sec_officers(visitor, user)
+        # Send web push notifications
+        subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in security_officers])
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        self.notify(SendWebPushEvent(data=data))
+        return email_struct
+
+    async def get_email_struct(self,
+                               claim_way: ClaimWay,
+                               claim: Claim,
+                               claim_way_2: bool = False,
+                               approved: bool = False,
+                               time_before: bool = False,
+                               status: str = None) -> EmailStruct:
+        """Collect system_users from ClaimWay and build EmailStruct"""
+        email_struct, system_users = await create_email_struct(
+            claim_way, claim, claim_way_2, approved, time_before, status
+        )
+        # Send web push notifications
+        subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in system_users])
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        self.notify(SendWebPushEvent(data=data))
+
+        return email_struct
 
     @staticmethod
     async def get_visitor_fk_relations(
@@ -76,13 +103,7 @@ class VisitorService(BaseService):
     @atomic(settings.CONNECTION_NAME)
     async def create(self, system_user: SystemUser, dto: VisitorDto.CreationDto) -> Visitor:
         try:
-            if await Visitor.exists(
-                    Q(passport=dto.passport) |
-                    Q(international_passport=dto.international_passport) |
-                    Q(drive_license=dto.drive_license) |
-                    Q(military_id=dto.military_id),
-                    deleted=False
-            ):
+            if dto.passport and await Visitor.exists(passport=dto.passport, deleted=False):
                 raise InconsistencyError(message="This visitor already exists.")
 
             fk_relations = await self.get_visitor_fk_relations(dto)
@@ -108,14 +129,14 @@ class VisitorService(BaseService):
 
             visitor_in_black_list = await BlackList.exists(visitor=visitor)
             if visitor_in_black_list:
-                self.notify(NotifyVisitorInBlackListEvent(
-                    await BlackListService.collect_target_users(visitor, user=system_user)))
+                self.notify(NotifyVisitorInBlackListEvent(await self.collect_target_users(visitor, user=system_user)))
 
             if claim := fk_relations["claim"]:
                 claim_way = await ClaimWay.get_or_none(claims=claim.id).prefetch_related(
                     "system_users") if claim.claim_way else None
                 if claim_way:
-                    self.notify(await ClaimService.EventName.time_before_for_claim_way(claim_way, claim))
+                    self.notify(NotifyUsersInClaimWayBeforeNminutesEvent(
+                        await self.get_email_struct(claim_way, claim=claim, time_before=True)))
 
             return visitor
 
@@ -131,7 +152,7 @@ class VisitorService(BaseService):
         visitor_in_black_list = await BlackList.exists(visitor=visitor)
         if visitor_in_black_list:
             self.notify(
-                NotifyVisitorInBlackListEvent(await BlackListService.collect_target_users(visitor, user=system_user)))
+                NotifyVisitorInBlackListEvent(await self.collect_target_users(visitor, user=system_user)))
 
         fk_relations = await self.get_visitor_fk_relations(dto)
 
@@ -160,7 +181,8 @@ class VisitorService(BaseService):
                 claim_way = await ClaimWay.get_or_none(id=claim.claim_way_id).prefetch_related(
                     "system_users") if claim.claim_way else None
                 if claim_way:
-                    self.notify(await ClaimService.EventName.time_before_for_claim_way(claim_way, claim))
+                    self.notify(NotifyUsersInClaimWayBeforeNminutesEvent(
+                        await self.get_email_struct(claim_way, claim=claim, time_before=True)))
 
             if fk_relations["pass_id"] and visitor.claim:
                 await self.send_webpush(system_user, visitor)
@@ -180,7 +202,8 @@ class VisitorService(BaseService):
             title = f"Выдан пропуск для {visitor}."
             body = f"{system_user} назначил пропуск №{visitor.pass_id} посетителю {visitor}."
             subscriptions = await PushSubscription.filter(system_user=claim.system_user_id)  # noqa
-            await WebPushController.trigger_push_notifications_for_subscriptions(subscriptions, title, body)
+            data = WebPush.ToCelery(subscriptions=subscriptions, title=title, body=body)
+            self.notify(SendWebPushEvent(data))
 
     @atomic(settings.CONNECTION_NAME)
     async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
@@ -465,11 +488,21 @@ class VisitorPhotoService(BaseService):
 
 class PassService(BaseService):
     target_model = Pass
+    rfid = itertools.count(1)
+
+    async def generate_rfid(self) -> int:
+        rfid = self.rfid.__next__()
+        while await Pass.exists(rfid=rfid):
+            rfid += 1
+        self.rfid = itertools.count(rfid + 1)
+        return rfid
 
     @atomic(settings.CONNECTION_NAME)
     async def create(self, system_user: SystemUser, dto: PassDto.CreationDto) -> Pass:
         if not dto.rfid:  # TODO who will provide rfid?
-            setattr(dto, "rfid", randint(10 ** 6, 10 ** 7 - 1))
+            rfid = await self.generate_rfid()
+            setattr(dto, "rfid", rfid)
+
         entity_kwargs = {field: value
                          for field, value in dto.dict().items()
                          if value and not field.startswith("valid")}
@@ -524,7 +557,7 @@ class PassService(BaseService):
         pass_id = await Pass.get_or_none(id=entity).only("rfid")
         if pass_id.rfid is None:
             raise InconsistencyError(message="To create barcode RFID couldn't be NULL.")
-        Code128(str(pass_id.rfid), writer=SVGWriter()).write(buffered := BytesIO())
+        Code128(pass_id.rfid, writer=SVGWriter()).write(buffered := BytesIO())
         bar_code = str(base64.b64encode(buffered.getvalue()))
         buffered.close()
         return bar_code
