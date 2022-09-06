@@ -3,7 +3,6 @@ from celery.schedules import crontab
 
 import settings
 
-
 celery = Celery('asbp', include=["core.communication.celery.tasks"])
 
 celery.conf.update(broker_url=settings.CELERY_BROKER_URL,

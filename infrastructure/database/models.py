@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import TypeVar
+
 from tortoise import fields
 from tortoise.models import Model
 
@@ -527,8 +528,8 @@ class PushSubscription(AbstractBaseModel, TimestampMixin):
 
 
 if __name__ == '__main__':
-    import sys
     import inspect
+    import sys
 
     clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
     print(lst := [cls[0] for cls in clsmembers], len(lst), sep="\n")

@@ -1,7 +1,7 @@
+import hashlib
 import random
 import string
 from typing import Iterable
-import hashlib
 
 
 def encrypt_password(passw: str, salt_len: int = 10) -> Iterable[str]:

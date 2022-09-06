@@ -1,4 +1,5 @@
 from typing import Type
+
 from pydantic import BaseModel
 from pyee.asyncio import AsyncIOEventEmitter
 from tortoise.exceptions import IntegrityError
@@ -9,7 +10,7 @@ from core.communication.publisher import Publisher
 from core.dto.access import EntityId
 from core.utils.error_format import integrity_error_format
 from infrastructure.database.layer import DbLayer
-from infrastructure.database.models import SystemUser, MODEL
+from infrastructure.database.models import MODEL, SystemUser
 from infrastructure.database.repository import EntityRepository
 
 

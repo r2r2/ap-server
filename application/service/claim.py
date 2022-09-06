@@ -1,30 +1,27 @@
 import base64
-import pandas as pd
-from itertools import zip_longest
 from io import BytesIO
+from itertools import zip_longest
+
+import pandas as pd
 from dateutil.parser import parse
-from tortoise.transactions import atomic
 from tortoise.queryset import Q
+from tortoise.transactions import atomic
 
 import settings
-from infrastructure.database.models import (SystemUser,
-                                            Claim,
-                                            ClaimWay,
-                                            Pass,
-                                            ClaimWayApproval,
-                                            Visitor,
-                                            BlackList,
-                                            PushSubscription)
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
+from core.communication.celery.sending_emails import create_email_struct
+from core.communication.event import (Event,
+                                      NotifyUsersInClaimWayBeforeNminutesEvent,
+                                      NotifyUsersInClaimWayEvent,
+                                      SendWebPushEvent)
 from core.dto.access import EntityId
 from core.dto.service import ClaimDto, EmailStruct, VisitorDto, WebPush
-from core.communication.celery.sending_emails import create_email_struct
-from core.communication.event import (NotifyUsersInClaimWayEvent,
-                                      NotifyUsersInClaimWayBeforeNminutesEvent,
-                                      Event,
-                                      SendWebPushEvent)
 from core.plugins.plugins_wrap import AddPlugins
+from infrastructure.database.models import (BlackList, Claim, ClaimWay,
+                                            ClaimWayApproval, Pass,
+                                            PushSubscription, SystemUser,
+                                            Visitor)
 
 
 class ClaimService(BaseService):
@@ -77,12 +74,15 @@ class ClaimService(BaseService):
                                time_before: bool = False,
                                status: str = None) -> EmailStruct:
         """Collect system_users from ClaimWay and build EmailStruct"""
-        email_struct, system_users = await create_email_struct(
+        email_struct, system_users, url = await create_email_struct(
             claim_way, claim, claim_way_2, approved, time_before, status
         )
         # Send web push notifications
         subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in system_users])
-        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        data = WebPush.ToCelery(subscriptions=subscriptions,
+                                title=email_struct.subject,
+                                body=email_struct.text,
+                                url=url)
         self.notify(SendWebPushEvent(data=data))
 
         return email_struct

@@ -1,23 +1,20 @@
 from typing import Type
+
 from pydantic import BaseModel
 from sanic import Request
 from sanic.exceptions import NotFound
 from sanic.response import HTTPResponse, json
 from sanic.views import HTTPMethodView
 
-from application.access.access import (SystemUserAccess,
-                                       ZoneAccess,
-                                       ClaimWayAccess,
-                                       ClaimToZoneAccess,
-                                       ParkingPlaceAccess,
-                                       ParkingAccess,
-                                       RoleAccess,
-                                       ScopeConstructorAccess)
+from application.access.access import (ClaimToZoneAccess, ClaimWayAccess,
+                                       ParkingAccess, ParkingPlaceAccess,
+                                       RoleAccess, ScopeConstructorAccess,
+                                       SystemUserAccess, ZoneAccess)
 from application.access.base_access import BaseAccess
-from core.dto import validate, access
+from core.dto import access, validate
 from core.dto.access import EntityId
-from core.server.auth import protect
 from core.dto.service import ScopeConstructor
+from core.server.auth import protect
 from core.utils.limit_offset import get_limit_offset
 
 

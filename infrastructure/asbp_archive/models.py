@@ -1,6 +1,6 @@
 from tortoise import fields
 
-from infrastructure.database.models import TimestampMixin, AbstractBaseModel
+from infrastructure.database.models import AbstractBaseModel, TimestampMixin
 
 
 class Archive(AbstractBaseModel, TimestampMixin):

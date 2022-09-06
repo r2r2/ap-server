@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Json, conlist, constr, conint, EmailStr, validator, PositiveInt, NonNegativeInt, AnyUrl
-from typing import Optional, Literal
 from datetime import datetime
+from typing import Literal, Optional
+
+from pydantic import (AnyUrl, BaseModel, EmailStr, Json, NonNegativeInt,
+                      PositiveInt, conint, conlist, constr, validator)
 
 import settings
 from core.dto.access import EntityId
@@ -38,11 +40,13 @@ class WebPush:
     class NotifyAllDto(BaseModel):
         title: str
         body: str
+        url: str | None
 
     class ToCelery(BaseModel):
         subscriptions: list
         title: str
         body: str
+        url: str | None
 
 
 class ClaimDto:

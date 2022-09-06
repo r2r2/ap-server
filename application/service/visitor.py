@@ -1,56 +1,41 @@
 import base64
-import qrcode
 import itertools
-from barcode import Code128
-from barcode.writer import SVGWriter
 from datetime import datetime
 from io import BytesIO
 from typing import Type
+
+import qrcode
+from barcode import Code128
+from barcode.writer import SVGWriter
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
+from pydantic import BaseModel
 from tortoise import exceptions
 from tortoise.transactions import atomic
-from pydantic import BaseModel
 
 import settings
-from core.communication.celery.sending_emails import create_email_struct_for_sec_officers, create_email_struct
-from core.communication.event import (NotifyVisitorInBlackListEvent,
-                                      SendWebPushEvent,
-                                      NotifyUsersInClaimWayBeforeNminutesEvent)
-from core.dto.access import EntityId
-from core.dto.service import (VisitorDto,
-                              PassportDto,
-                              MilitaryIdDto,
-                              VisitSessionDto,
-                              DriveLicenseDto,
-                              PassDto,
-                              TransportDto,
-                              VisitorPhotoDto,
-                              WaterMarkDto,
-                              InternationalPassportDto,
-                              WebPush,
-                              EmailStruct)
-from infrastructure.database.repository import EntityRepository
-from infrastructure.database.models import (Passport,
-                                            Pass,
-                                            DriveLicense,
-                                            MilitaryId,
-                                            Transport,
-                                            Visitor,
-                                            VisitSession,
-                                            VisitorPhoto,
-                                            Claim,
-                                            BlackList,
-                                            WaterMark,
-                                            InternationalPassport,
-                                            WatermarkPosition,
-                                            ClaimWay,
-                                            SystemUser,
-                                            StrangerThings,
-                                            PushSubscription,
-                                            MODEL)
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
+from core.communication.celery.sending_emails import (
+    create_email_struct, create_email_struct_for_sec_officers)
+from core.communication.event import (NotifyUsersInClaimWayBeforeNminutesEvent,
+                                      NotifyVisitorInBlackListEvent,
+                                      SendWebPushEvent)
+from core.dto.access import EntityId
+from core.dto.service import (DriveLicenseDto, EmailStruct,
+                              InternationalPassportDto, MilitaryIdDto, PassDto,
+                              PassportDto, TransportDto, VisitorDto,
+                              VisitorPhotoDto, VisitSessionDto, WaterMarkDto,
+                              WebPush)
 from core.plugins.plugins_wrap import AddPlugins
+from infrastructure.database.models import (MODEL, BlackList, Claim, ClaimWay,
+                                            DriveLicense,
+                                            InternationalPassport, MilitaryId,
+                                            Pass, Passport, PushSubscription,
+                                            StrangerThings, SystemUser,
+                                            Transport, Visitor, VisitorPhoto,
+                                            VisitSession, WaterMark,
+                                            WatermarkPosition)
+from infrastructure.database.repository import EntityRepository
 
 
 class VisitorService(BaseService):
@@ -60,7 +45,8 @@ class VisitorService(BaseService):
         email_struct, security_officers = await create_email_struct_for_sec_officers(visitor, user)
         # Send web push notifications
         subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in security_officers])
-        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text,
+                                url=None)
         self.notify(SendWebPushEvent(data=data))
         return email_struct
 
@@ -72,12 +58,13 @@ class VisitorService(BaseService):
                                time_before: bool = False,
                                status: str = None) -> EmailStruct:
         """Collect system_users from ClaimWay and build EmailStruct"""
-        email_struct, system_users = await create_email_struct(
+        email_struct, system_users, url = await create_email_struct(
             claim_way, claim, claim_way_2, approved, time_before, status
         )
         # Send web push notifications
         subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in system_users])
-        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text,
+                                url=url)
         self.notify(SendWebPushEvent(data=data))
 
         return email_struct

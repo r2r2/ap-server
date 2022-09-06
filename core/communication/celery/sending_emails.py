@@ -1,17 +1,17 @@
 import os
-import aiosmtplib
 from datetime import datetime, timedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
-from email.utils import formatdate
 from email.mime.text import MIMEText
+from email.utils import formatdate
+
+import aiosmtplib
 from aiosmtplib import SMTPAuthenticationError, SMTPConnectTimeoutError
 
 import settings
 from core.dto.service import EmailStruct
 from core.utils.loggining import logger
-from infrastructure.database.models import Claim, Visitor, SystemUser, ClaimWay
-
+from infrastructure.database.models import Claim, ClaimWay, SystemUser, Visitor
 
 COMMASPACE = ', '
 
@@ -96,11 +96,9 @@ async def create_email_struct(claim_way: ClaimWay,
                               claim_way_2: bool = False,
                               approved: bool = False,
                               time_before: bool = False,
-                              status: str = None) -> tuple[EmailStruct, list[SystemUser]]:
+                              status: str = None) -> tuple[EmailStruct, list[SystemUser], str]:
     """Build EmailStruct"""
     system_users = claim_way.__dict__.get('_system_users')
-    print(system_users)
-    print(type(system_users))
 
     url = settings.CLAIMS_URL.format(claim=claim.id)
     text = settings.CLAIMWAY_BODY_TEXT.format(claim=claim.id, url=url)
@@ -134,7 +132,7 @@ async def create_email_struct(claim_way: ClaimWay,
                                time_to_expire=time_to_expire,
                                claim=claim.id,
                                claim_way_2=claim_way_2)
-    return email_struct, system_users
+    return email_struct, system_users, url
 
 
 async def create_email_struct_for_sec_officers(visitor: Visitor,

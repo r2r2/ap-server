@@ -1,4 +1,5 @@
 from functools import wraps
+
 from sanic import response
 
 from core.dto import validate

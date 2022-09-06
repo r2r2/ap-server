@@ -1,32 +1,21 @@
+from aerich import Command
 from loguru import logger
+from sanic import Sanic
 from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.transactions import atomic
-from aerich import Command
-from sanic import Sanic
 
 import settings
-from infrastructure.database.connection import sample_conf
-from infrastructure.database.models import (Role,
-                                            SystemUser,
-                                            Visitor,
-                                            Passport,
-                                            Claim,
-                                            Pass,
-                                            Zone,
-                                            ClaimWay,
-                                            ClaimToZone,
-                                            ParkingPlace,
-                                            Parking,
-                                            ParkingTimeslot,
-                                            BlackList,
-                                            MilitaryId,
-                                            VisitSession,
-                                            DriveLicense,
-                                            Transport,
-                                            ClaimWayApproval,
-                                            SystemSettings)
 from application.service.scope_constructor import init_scopes
 from core.utils.encrypt import encrypt_password
+from infrastructure.database.connection import sample_conf
+from infrastructure.database.models import (BlackList, Claim, ClaimToZone,
+                                            ClaimWay, ClaimWayApproval,
+                                            DriveLicense, MilitaryId, Parking,
+                                            ParkingPlace, ParkingTimeslot,
+                                            Pass, Passport, Role,
+                                            SystemSettings, SystemUser,
+                                            Transport, Visitor, VisitSession,
+                                            Zone)
 
 
 @atomic(settings.CONNECTION_NAME)

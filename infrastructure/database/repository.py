@@ -1,4 +1,4 @@
-from typing import Type, List, Union, overload
+from typing import List, Type, Union, overload
 
 from application.exceptions import InconsistencyError
 from core.dto.access import EntityId

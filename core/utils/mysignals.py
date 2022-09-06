@@ -1,15 +1,17 @@
+from typing import Optional, Type
+
 import aioredis
-from typing import Type, Optional
+from sanic import Sanic
 from tortoise import BaseDBAsyncClient
 from tortoise.signals import post_save
-from sanic import Sanic
 
 import settings
 from application.service.asbp_archive import ArchiveController
 from application.service.web_push import WebPushController
 from core.server.controllers import BaseAccessController
 from core.server.routes import BaseServiceController
-from core.server.sse_monitoring import StrangerThingsEventsController, StrangerThingsController
+from core.server.sse_monitoring import (StrangerThingsController,
+                                        StrangerThingsEventsController)
 from core.utils.orjson_default import odumps
 from infrastructure.database.models import StrangerThings
 

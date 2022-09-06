@@ -1,6 +1,6 @@
 from sanic.errorpages import exception_response
-from sanic.handlers import ErrorHandler
 from sanic.exceptions import SanicException
+from sanic.handlers import ErrorHandler
 
 from application.exceptions import ApplicationError
 

@@ -1,17 +1,19 @@
 import asyncio
 from typing import Union
-from tortoise.queryset import Q
+
 from celery import Task
 from celery.worker.request import Request
+from tortoise.queryset import Q
 
 from application.service.asbp_archive import ArchiveController
-from application.service.web_push import WebPushController
 from application.service.parking import ParkingTimeslotService
-from core.utils.loggining import logger
+from application.service.web_push import WebPushController
 from core.communication.celery.celery_ import celery
 from core.communication.celery.sending_emails import _send_email
 from core.dto.service import EmailStruct, WebPush
-from infrastructure.database.models import SystemUser, Claim, ClaimWay, ParkingTimeslot
+from core.utils.loggining import logger
+from infrastructure.database.models import (Claim, ClaimWay, ParkingTimeslot,
+                                            SystemUser)
 
 
 class MyRequest(Request):
@@ -110,5 +112,7 @@ def parking_time_exceeded(data: dict[str, Union[str, int]]) -> None:
 def send_webpush(data: WebPush.ToCelery) -> None:
     """Sending web push notifications."""
     asyncio.get_event_loop().run_until_complete(
-        WebPushController.trigger_push_notifications_for_subscriptions(data.subscriptions, data.title, data.body)
+        WebPushController.trigger_push_notifications_for_subscriptions(
+            data.subscriptions, data.title, data.body, data.url
+        )
     )

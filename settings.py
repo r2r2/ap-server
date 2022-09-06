@@ -1,8 +1,8 @@
 import os
+
 from environs import Env
 
 from infrastructure.database.models import SystemSettings
-
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEBUG = True

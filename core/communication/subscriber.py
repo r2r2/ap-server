@@ -1,5 +1,6 @@
+from typing import Callable, Coroutine, List, TypeVar, Union
+
 from pyee.asyncio import AsyncIOEventEmitter
-from typing import Union, Callable, Coroutine, TypeVar, List
 
 Handler = TypeVar(name="Handler", bound=Union[Callable, Coroutine])
 

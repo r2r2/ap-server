@@ -3,7 +3,7 @@ import logging
 import random
 import string
 import sys
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from typing import Iterable
 from uuid import uuid4
 

@@ -1,8 +1,8 @@
 import os
 
-from core.utils.loggining import logger
-from core.server.server import Server
 from config.config import get_config
+from core.server.server import Server
+from core.utils.loggining import logger
 from settings import BASE_DIR
 
 

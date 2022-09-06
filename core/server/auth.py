@@ -1,24 +1,30 @@
 import json
-import pytz
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from typing import Dict, Tuple, Union
-from sanic import Sanic, Request, HTTPResponse
+
+import pytz
+from sanic import HTTPResponse, Request, Sanic
 from sanic import json as json_response
 from sanic.views import HTTPMethodView
 from tortoise.transactions import atomic
 
 import settings
-from infrastructure.database.models import SystemUser, SystemUserSession
-from core.errors.auth_errors import MissingAuthorizationCookie, AuthenticationFailed, ScopesFailed
-from core.dto import validate
+from core.dto import service, validate
+from core.errors.auth_errors import (AuthenticationFailed,
+                                     MissingAuthorizationCookie, ScopesFailed)
 from core.utils.crypto import AESCrypto, BaseCrypto
-from core.dto import service
+from infrastructure.database.models import SystemUser, SystemUserSession
 
 
-def generate_auth_resp(auth, session, token_data):
+def generate_auth_resp(auth, session, token_data, payload):
     expire = session.expire_time.strftime(auth.time_format)
-    resp = json_response({"token": token_data.cipher_text, "session": session.id, "expire_at": expire})
+    resp = json_response({
+        "token": token_data.cipher_text,
+        "session": session.id,
+        "expire_at": expire,
+        "roles": payload
+    })
     resp.cookies["token"] = token_data.cipher_text
     resp.cookies["session"] = str(session.id)
     resp.cookies["expire_at"] = str(expire)
@@ -34,7 +40,7 @@ class UserAuthController(HTTPMethodView):
         payload = user.to_dict()
         token_data = await auth.generate_token(json.dumps(payload))
         session = await auth.create_session(user, request.headers.get("user-agent"), token_data)
-        return generate_auth_resp(auth, session, token_data)
+        return generate_auth_resp(auth, session, token_data, payload)
 
 
 class CookiesStruct:
@@ -143,16 +149,16 @@ def init_auth(app: Sanic):
 def protect(retrive_user: bool = True):
     def called(method):
         @wraps(method)
-        async def f(*args, **kwargs):
+        async def func(*args, **kwargs):
             cls = args[0]
             initial_args = args
             request = args[1]
-            user, payload = await request.app.ctx.auth.validate_request(request, SystemUserSession)
+            user, _ = await request.app.ctx.auth.validate_request(request, SystemUserSession)
             await request.app.ctx.auth.check_scopes([i.name for i in user.scopes], cls.enabled_scopes)
             if retrive_user:
                 initial_args += (user,)
             return await method(*initial_args, **kwargs)
 
-        return f
+        return func
 
     return called

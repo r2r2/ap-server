@@ -1,6 +1,7 @@
 import asyncio
-import aioredis
 from multiprocessing import Process
+
+import aioredis
 from orjson import loads
 from pyee.asyncio import AsyncIOEventEmitter
 from sanic import Sanic
@@ -8,26 +9,26 @@ from sanic_openapi import openapi3_blueprint
 from tortoise.contrib.sanic import register_tortoise
 
 import settings
-from application.service.service_registry import ServiceRegistry
 from application.access.access_registry import AccessRegistry
-from application.service.scope_constructor import EnabledScopeSetter
 from application.service.asbp_archive import init_archive_routes
+from application.service.scope_constructor import EnabledScopeSetter
+from application.service.service_registry import ServiceRegistry
 from application.service.web_push import init_web_push
+from ci.openapi.openapi import SanicRoutesFormatter, overwrite_swagger_route
 from config.config import Config
-from core.server.routes import BaseServiceController
-from core.utils.loggining import LogsHandler, logger
-from core.server.sse_monitoring import init_sse_monitoring
-from core.utils.license_count import LicenseCounter
-from core.utils.mysignals import MySignalHandler
-from core.utils.orjson_default import odumps
+from core.communication.celery.celery_ import celery
+from core.communication.celery.watcher import CeleryEventWatcher
 from core.errors.error_handler import ExtendedErrorHandler
 from core.server.auth import init_auth
 from core.server.controllers import BaseAccessController
-from core.communication.celery.celery_ import celery
-from core.communication.celery.watcher import CeleryEventWatcher
-from infrastructure.database.connection import sample_conf, init_database_conn
+from core.server.routes import BaseServiceController
+from core.server.sse_monitoring import init_sse_monitoring
+from core.utils.license_count import LicenseCounter
+from core.utils.loggining import LogsHandler, logger
+from core.utils.mysignals import MySignalHandler
+from core.utils.orjson_default import odumps
+from infrastructure.database.connection import init_database_conn, sample_conf
 from infrastructure.database.init_db import setup_db
-from ci.openapi.openapi import SanicRoutesFormatter, overwrite_swagger_route
 
 
 class Server:

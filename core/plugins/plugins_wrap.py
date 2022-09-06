@@ -1,10 +1,11 @@
 import asyncio
+import importlib.util
 import os
 from functools import wraps
-import importlib.util
-from loguru import logger
-from typing import List
 from types import ModuleType
+from typing import List
+
+from loguru import logger
 
 from infrastructure.database.models import Plugin
 

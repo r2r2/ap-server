@@ -1,13 +1,17 @@
 from tortoise.transactions import atomic
 
 import settings
-from core.dto.access import EntityId
-from core.dto.service import BlackListDto, EmailStruct, WebPush
-from core.communication.event import NotifyVisitorInBlackListEvent, SendWebPushEvent
-from core.communication.celery.sending_emails import create_email_struct_for_sec_officers
-from infrastructure.database.models import BlackList, AbstractBaseModel, Visitor, SystemUser, PushSubscription
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
+from core.communication.celery.sending_emails import \
+    create_email_struct_for_sec_officers
+from core.communication.event import (NotifyVisitorInBlackListEvent,
+                                      SendWebPushEvent)
+from core.dto.access import EntityId
+from core.dto.service import BlackListDto, EmailStruct, WebPush
+from infrastructure.database.models import (AbstractBaseModel, BlackList,
+                                            PushSubscription, SystemUser,
+                                            Visitor)
 
 
 class BlackListService(BaseService):

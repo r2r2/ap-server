@@ -1,15 +1,18 @@
 from datetime import datetime, timedelta
 from typing import Optional, Union
+
 from tortoise.queryset import Q
 from tortoise.transactions import atomic
 
 import settings
-from core.dto.access import EntityId
-from core.dto.service import ParkingTimeslotDto
-from core.communication.event import MaxParkingTimeHoursExceededEvent
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
-from infrastructure.database.models import ParkingTimeslot, ParkingPlace, SystemUser, Transport, StrangerThings
+from core.communication.event import MaxParkingTimeHoursExceededEvent
+from core.dto.access import EntityId
+from core.dto.service import ParkingTimeslotDto
+from infrastructure.database.models import (ParkingPlace, ParkingTimeslot,
+                                            StrangerThings, SystemUser,
+                                            Transport)
 
 
 class ParkingTimeslotService(BaseService):

@@ -2,7 +2,6 @@ import pytest
 
 from core.server.server import Server
 
-
 app = Server('test_app').sanic_app
 pytestmark = pytest.mark.asyncio
 

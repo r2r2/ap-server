@@ -1,15 +1,16 @@
 from typing import Type, TypeVar
-from tortoise.queryset import Q
-from sanic import Sanic
 
-from infrastructure.database.models import EnableScope, Role
-from core.server.controllers import BaseAccessController
-from core.server.routes import BaseServiceController
-from core.server.sse_monitoring import StrangerThingsEventsController, StrangerThingsController
+from sanic import Sanic
+from tortoise.queryset import Q
+
+from application.exceptions import InconsistencyError
 from application.service.asbp_archive import ArchiveController
 from application.service.web_push import WebPushController
-from application.exceptions import InconsistencyError
-
+from core.server.controllers import BaseAccessController
+from core.server.routes import BaseServiceController
+from core.server.sse_monitoring import (StrangerThingsController,
+                                        StrangerThingsEventsController)
+from infrastructure.database.models import EnableScope, Role
 
 C = TypeVar("C",
             Type[BaseAccessController],

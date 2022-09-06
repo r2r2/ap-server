@@ -1,9 +1,8 @@
-from dataclasses import dataclass
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Optional
 
-from core.dto.access import EntityName, EntityId
+from core.dto.access import EntityId, EntityName
 from infrastructure.database import models
 
 

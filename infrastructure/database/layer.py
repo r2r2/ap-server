@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Type
+
 from tortoise.expressions import Q
 from tortoise.fields import Field
 from tortoise.fields.relational import RelationalField
-from tortoise.queryset import QuerySetSingle, QuerySet
+from tortoise.queryset import QuerySet, QuerySetSingle
 
 from core.dto.access import EntityId
-from infrastructure.database.models import SystemUserSession, SystemUser, MODEL
+from infrastructure.database.models import MODEL, SystemUser, SystemUserSession
 
 
 class SystemUserDbLayer:

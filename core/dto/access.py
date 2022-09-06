@@ -1,8 +1,8 @@
 from typing import Optional
-from pydantic import BaseModel, conlist, EmailStr, constr, NonNegativeInt
+
+from pydantic import BaseModel, EmailStr, NonNegativeInt, conlist, constr
 
 import settings
-
 
 EntityId = int
 EntityName = str

@@ -1,7 +1,6 @@
-from tortoise import Tortoise, BaseDBAsyncClient, connections
+from tortoise import BaseDBAsyncClient, Tortoise, connections
 
 import settings
-
 
 sample_conf = {
     'connections': {

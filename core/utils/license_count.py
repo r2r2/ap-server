@@ -1,7 +1,7 @@
 from typing import Type
 
 import settings
-from infrastructure.database.models import SystemUser, AbstractBaseModel
+from infrastructure.database.models import AbstractBaseModel, SystemUser
 
 
 class LicenseCounter:

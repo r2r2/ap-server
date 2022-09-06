@@ -1,17 +1,14 @@
 from celery.exceptions import SoftTimeLimitExceeded, TaskRevokedError
 from pyee.asyncio import AsyncIOEventEmitter
 
-from core.utils.loggining import logger
-from core.communication.celery.tasks import (send_email_celery,
+from core.communication.celery.tasks import (parking_time_exceeded,
                                              send_email_before_n_minutes,
-                                             parking_time_exceeded,
-                                             send_webpush)
-from core.communication.event import (Event,
+                                             send_email_celery, send_webpush)
+from core.communication.event import (Event, MaxParkingTimeHoursExceededEvent,
                                       NotifyUsersInClaimWayBeforeNminutesEvent,
-                                      MaxParkingTimeHoursExceededEvent,
-                                      SendWebPushEvent
-                                      )
+                                      SendWebPushEvent)
 from core.communication.subscriber import Subscriber
+from core.utils.loggining import logger
 
 
 class CeleryEventWatcher(Subscriber):

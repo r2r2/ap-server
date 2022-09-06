@@ -1,29 +1,20 @@
-from typing import Union
+from sanic import Request
 from tortoise import exceptions
 from tortoise.queryset import Q
 from tortoise.transactions import atomic
-from sanic import Request
 
 import settings
-from infrastructure.database.models import (SystemUser,
-                                            Role,
-                                            Zone,
-                                            AbstractBaseModel,
-                                            ClaimWay,
-                                            ClaimToZone,
-                                            Claim,
-                                            Pass,
-                                            ParkingPlace,
-                                            Parking,
-                                            EnableScope,
-                                            StrangerThings)
 from application.access.base_access import BaseAccess
 from application.exceptions import InconsistencyError
 from core.dto import access
-from core.dto.service import ScopeConstructor
 from core.dto.access import EntityId
+from core.dto.service import ScopeConstructor
 from core.utils.crypto import BaseCrypto
 from core.utils.license_count import SysUserLicenses
+from infrastructure.database.models import (AbstractBaseModel, Claim,
+                                            ClaimToZone, ClaimWay, EnableScope,
+                                            Parking, ParkingPlace, Pass, Role,
+                                            StrangerThings, SystemUser, Zone)
 from infrastructure.database.repository import EntityRepository
 
 
@@ -75,6 +66,7 @@ class SystemUserAccess(BaseAccess):
                         continue
                     elif field == "scopes":
                         roles = await Role.filter(id__in=value)
+                        await system_user.scopes.clear()
                         await system_user.scopes.add(*roles)
                     else:
                         setattr(system_user, field, value)

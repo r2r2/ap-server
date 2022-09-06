@@ -1,21 +1,18 @@
 from typing import Dict, Type
+
 from pyee.asyncio import AsyncIOEventEmitter
 
-from application.service.parking import ParkingTimeslotService
 from application.service.base_service import BaseService
 from application.service.black_list import BlackListService
 from application.service.claim import ClaimService
+from application.service.parking import ParkingTimeslotService
 from application.service.system_settings import SystemSettingsService
-from application.service.visitor import (VisitorService,
-                                         PassportService,
-                                         MilitaryIdService,
-                                         VisitSessionService,
-                                         DriveLicenseService,
-                                         PassService,
-                                         TransportService,
-                                         VisitorPhotoService,
-                                         WaterMarkService,
-                                         InternationalPassportService)
+from application.service.visitor import (DriveLicenseService,
+                                         InternationalPassportService,
+                                         MilitaryIdService, PassportService,
+                                         PassService, TransportService,
+                                         VisitorPhotoService, VisitorService,
+                                         VisitSessionService, WaterMarkService)
 from infrastructure.database.layer import DbLayer
 
 

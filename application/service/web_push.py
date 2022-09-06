@@ -1,20 +1,20 @@
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPushException, webpush
+from sanic import HTTPResponse, Request, Sanic, json
 from sanic.exceptions import NotFound
 from sanic.views import HTTPMethodView
-from sanic import Sanic, Request, HTTPResponse, json
-from tortoise.transactions import atomic
 from tortoise import connections
+from tortoise.transactions import atomic
 
 import settings
 from application.exceptions import InconsistencyError
-from infrastructure.database.models import PushSubscription, SystemUser
-from core.server.auth import protect
-from core.utils.loggining import logger
-from core.utils.limit_offset import get_limit_offset
-from core.utils.orjson_default import odumps
 from core.dto.access import EntityId
-from core.dto.validator import validate
 from core.dto.service import WebPush
+from core.dto.validator import validate
+from core.server.auth import protect
+from core.utils.limit_offset import get_limit_offset
+from core.utils.loggining import logger
+from core.utils.orjson_default import odumps
+from infrastructure.database.models import PushSubscription, SystemUser
 
 
 class WebPushController:
@@ -97,12 +97,12 @@ class WebPushController:
             logger.warning(f"Remote service replied with a {extra.code}:{extra.errno}, {extra.message}")
 
     @staticmethod
-    async def trigger_push_notification(sub: PushSubscription, title: str, body: str) -> bool:
+    async def trigger_push_notification(sub: PushSubscription, title: str, body: str, url: str = "None") -> bool:
         """Send Push notification using pywebpush."""
         try:
             response = webpush(
                 subscription_info=sub.subscription_info,
-                data=odumps({"title": title, "body": body}),
+                data=odumps({"title": title, "body": body, "url": url}),
                 vapid_private_key=settings.VAPID_PRIVATE_KEY,
                 vapid_claims={
                     "sub": f"{settings.VAPID_CLAIM_EMAIL}"
@@ -115,11 +115,11 @@ class WebPushController:
 
     @staticmethod
     async def trigger_push_notifications_for_subscriptions(subscriptions: list[PushSubscription], title: str,
-                                                           body: str) -> list[bool]:
+                                                           body: str, url: str = None) -> list[bool]:
         """
         Loop through all subscriptions and send all the clients a push notification.
         """
-        return [await WebPushController.trigger_push_notification(subscription, title, body)
+        return [await WebPushController.trigger_push_notification(subscription, title, body, url)
                 for subscription in subscriptions]
 
 

@@ -1,4 +1,5 @@
 from typing import Type
+
 from pydantic import BaseModel
 from sanic import Request
 from sanic.exceptions import NotFound
@@ -6,57 +7,34 @@ from sanic.response import HTTPResponse, json
 from sanic.views import HTTPMethodView
 
 import settings
-from application.service.parking import ParkingTimeslotService
-from application.service.black_list import BlackListService
-from application.service.system_settings import SystemSettingsService
-from core.utils.limit_offset import get_limit_offset
-from core.dto import validate
-from core.server.auth import protect
-from core.dto.access import EntityId
-from core.dto.service import (ClaimDto,
-                              VisitorDto,
-                              PassportDto,
-                              MilitaryIdDto,
-                              VisitSessionDto,
-                              DriveLicenseDto,
-                              PassDto,
-                              TransportDto,
-                              BlackListDto,
-                              VisitorPhotoDto,
-                              WaterMarkDto,
-                              ParkingTimeslotDto,
-                              InternationalPassportDto,
-                              SystemSettingsDto)
-from infrastructure.database.models import (SystemUser,
-                                            Claim,
-                                            Visitor,
-                                            Passport,
-                                            MilitaryId,
-                                            VisitSession,
-                                            DriveLicense,
-                                            Pass,
-                                            Transport,
-                                            BlackList,
-                                            VisitorPhoto,
-                                            WaterMark,
-                                            ParkingTimeslot,
-                                            InternationalPassport,
-                                            SystemSettings,
-                                            ClaimWayApproval,
-                                            MODEL)
-from application.service.base_service import BaseService
-from application.service.claim import ClaimService
-from application.service.visitor import (VisitorService,
-                                         PassportService,
-                                         MilitaryIdService,
-                                         VisitSessionService,
-                                         DriveLicenseService,
-                                         PassService,
-                                         TransportService,
-                                         VisitorPhotoService,
-                                         WaterMarkService,
-                                         InternationalPassportService)
 from application.exceptions import InconsistencyError
+from application.service.base_service import BaseService
+from application.service.black_list import BlackListService
+from application.service.claim import ClaimService
+from application.service.parking import ParkingTimeslotService
+from application.service.system_settings import SystemSettingsService
+from application.service.visitor import (DriveLicenseService,
+                                         InternationalPassportService,
+                                         MilitaryIdService, PassportService,
+                                         PassService, TransportService,
+                                         VisitorPhotoService, VisitorService,
+                                         VisitSessionService, WaterMarkService)
+from core.dto import validate
+from core.dto.access import EntityId
+from core.dto.service import (BlackListDto, ClaimDto, DriveLicenseDto,
+                              InternationalPassportDto, MilitaryIdDto,
+                              ParkingTimeslotDto, PassDto, PassportDto,
+                              SystemSettingsDto, TransportDto, VisitorDto,
+                              VisitorPhotoDto, VisitSessionDto, WaterMarkDto)
+from core.server.auth import protect
+from core.utils.limit_offset import get_limit_offset
+from infrastructure.database.models import (MODEL, BlackList, Claim,
+                                            ClaimWayApproval, DriveLicense,
+                                            InternationalPassport, MilitaryId,
+                                            ParkingTimeslot, Pass, Passport,
+                                            SystemSettings, SystemUser,
+                                            Transport, Visitor, VisitorPhoto,
+                                            VisitSession, WaterMark)
 
 
 class BaseServiceController(HTTPMethodView):
@@ -120,8 +98,10 @@ class ClaimController:
             if entity is None:
                 limit, offset = await get_limit_offset(request)
                 models = await request.app.ctx.service_registry.get(self.target_service).read_all(limit, offset)
+                total: int = await Claim.all().count()
                 return json([await model.values_dict(m2m_fields=True, fk_fields=True,
-                                                     o2o_fields=True, backward_fk_fields=True) for model in models])
+                                                     o2o_fields=True, backward_fk_fields=True) for model in models] + [
+                    {"total": total}])
             model = await request.app.ctx.service_registry.get(self.target_service).read(entity)
             if model:
                 return json(await model.values_dict(m2m_fields=True, fk_fields=True,
