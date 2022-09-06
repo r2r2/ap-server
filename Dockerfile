@@ -57,6 +57,7 @@ COPY . $APP_HOME
 
 # copy entrypoint.sh
 COPY ./entrypoint.sh $APP_HOME
+COPY asbp_archive.sql /docker-entrypoint-initdb.d/
 
 # chown all the files to the app user
 RUN chown -R app:app $APP_HOME

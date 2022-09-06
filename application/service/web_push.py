@@ -50,7 +50,7 @@ class WebPushController:
             })
 
         @protect()
-        async def delete(self, request: Request, user: EntityId, entity: EntityId = None) -> HTTPResponse:
+        async def delete(self, _: Request, __: EntityId, entity: EntityId = None) -> HTTPResponse:
             await WebPushController.Subscription.delete_subscription(entity)
             return json({"message": f"Subscription id={entity} has been deleted from DB."})
 
@@ -68,7 +68,7 @@ class WebPushController:
         post_dto = WebPush.NotifyAllDto
 
         @protect()
-        async def post(self, request: Request, system_user: SystemUser) -> HTTPResponse:
+        async def post(self, request: Request, _: SystemUser) -> HTTPResponse:
             dto = validate(self.post_dto, request)
             if subscriptions := await PushSubscription.all():
                 results = await WebPushController.trigger_push_notifications_for_subscriptions(

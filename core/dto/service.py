@@ -6,7 +6,7 @@ from pydantic import (AnyUrl, BaseModel, EmailStr, Json, NonNegativeInt,
 
 import settings
 from core.dto.access import EntityId
-from infrastructure.database.models import WatermarkPosition, PushSubscription
+from infrastructure.database.models import WatermarkPosition
 
 
 class EmailStruct(BaseModel):
@@ -19,19 +19,25 @@ class EmailStruct(BaseModel):
     claim: Optional[EntityId]
     claim_way_2: Optional[bool]
 
+    def __str__(self):
+        return self.__class__.__name__
+
 
 class Auth:
+    """Authentication"""
     class LoginDto(BaseModel):
         username: constr(min_length=1)
         password: str
 
 
 class ScopeConstructor:
+    """Updating roles for users"""
     class UpdateDto(BaseModel):
         scopes: conlist(item_type=EntityId, min_items=1)
 
 
 class WebPush:
+    """Web Push schema"""
     class SubscriptionDto(BaseModel):
         endpoint: AnyUrl
         keys: dict[Literal["p256dh", "auth"], str]
@@ -50,6 +56,7 @@ class WebPush:
 
 
 class ClaimDto:
+    """Claim schema"""
     class CreationDto(BaseModel):
         pass_type: constr(min_length=1)
         claim_way: Optional[EntityId]
@@ -81,6 +88,7 @@ class ClaimDto:
 
 
 class VisitorDto:
+    """Visitor schema"""
     class CreationDto(BaseModel):
         first_name: constr(min_length=1)
         last_name: constr(min_length=1)
@@ -129,6 +137,10 @@ class VisitorDto:
 
 
 class VisitSessionDto:
+    """
+    Time which Visitor spend on object.
+    It's enter time & exit time
+    """
     class CreationDto(BaseModel):
         visitor: EntityId
         enter: Optional[str]
@@ -140,6 +152,7 @@ class VisitSessionDto:
 
 
 class PassportDto:
+    """Passport schema"""
     class CreationDto(BaseModel):
         number: int
         division_code: Optional[str]
@@ -160,6 +173,7 @@ class PassportDto:
 
 
 class InternationalPassportDto:
+    """International passport schema"""
     class CreationDto(BaseModel):
         number: int
         date_of_birth: Optional[str]
@@ -174,6 +188,7 @@ class InternationalPassportDto:
 
 
 class DriveLicenseDto:
+    """Drive license schema"""
     class CreationDto(BaseModel):
         date_of_issue: Optional[str]
         expiration_date: Optional[str]
@@ -194,6 +209,7 @@ class DriveLicenseDto:
 
 
 class VisitorPhotoDto:
+    """Schema for all relative to Visitor's photos"""
     class CreationDto(BaseModel):
         signature: Optional[Json]
         webcam_img: Optional[conlist(bytes)]
@@ -220,6 +236,7 @@ class VisitorPhotoDto:
 
 
 class WaterMarkDto:
+    """Watermark schema"""
     class CreationDto(BaseModel):
         text: Optional[str]
         image: Optional[bytes]
@@ -230,6 +247,7 @@ class WaterMarkDto:
 
 
 class MilitaryIdDto:
+    """Military id schema"""
     class CreationDto(BaseModel):
         number: constr(min_length=1)
         date_of_birth: Optional[str]
@@ -248,6 +266,7 @@ class MilitaryIdDto:
 
 
 class PassDto:
+    """Pass schema"""
     class CreationDto(BaseModel):
         rfid: constr(min_length=1) | None
         pass_type: constr(min_length=1)
@@ -262,6 +281,7 @@ class PassDto:
 
 
 class TransportDto:
+    """Transport schema"""
     class CreationDto(BaseModel):
         model: Optional[str]
         number: str
@@ -269,8 +289,8 @@ class TransportDto:
         claims: conlist(item_type=EntityId, min_items=1)
 
         @validator('number')
-        def number_to_upper(cls, v):
-            return v.upper()
+        def number_to_upper(cls, value):
+            return value.upper()
 
     class UpdateDto(BaseModel):
         model: Optional[str]
@@ -279,11 +299,12 @@ class TransportDto:
         claims: Optional[conlist(item_type=EntityId, min_items=1)]
 
         @validator('number')
-        def number_to_upper(cls, v):
-            return v.upper()
+        def number_to_upper(cls, value):
+            return value.upper()
 
 
 class ParkingTimeslotDto:
+    """Schema for reserving time slots on parking"""
     class CreationDto(BaseModel):
         start: str
         end: str
@@ -298,6 +319,7 @@ class ParkingTimeslotDto:
 
 
 class BlackListDto:
+    """Black list schema"""
     class CreationDto(BaseModel):
         visitor: EntityId
         level: Optional[str]
@@ -308,6 +330,7 @@ class BlackListDto:
 
 
 class SystemSettingsDto(BaseModel):
+    """Schema for system settings"""
     claimway_before_n_minutes: Optional[PositiveInt]
     max_systemuser_license: Optional[PositiveInt]
     max_photo_upload: Optional[NonNegativeInt]
@@ -321,5 +344,8 @@ class SystemSettingsDto(BaseModel):
     parking_timeslot_interval: Optional[PositiveInt]
 
     @validator("watermark_format")
-    def _to_upper(cls, v):
-        return v.upper()
+    def to_upper(cls, value):
+        return value.upper()
+
+    def __str__(self):
+        return self.__class__.__name__

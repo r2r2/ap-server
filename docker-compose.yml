@@ -20,6 +20,7 @@ services:
         image: postgres:14.1
         volumes:
             -   asbp_db:/var/lib/postgresql/data/
+            -   ./asbp_archive.sql:/docker-entrypoint-initdb.d/asbp_archive.sql
         env_file:
             -   ./.env.prod
         networks:

@@ -67,7 +67,7 @@ class Server:
     def _set_error_handler(self):
         self.sanic_app.error_handler = ExtendedErrorHandler()
 
-    async def setup_worker_context(self, app: Sanic, loop: asyncio.AbstractEventLoop):
+    async def setup_worker_context(self, app: Sanic, _: asyncio.AbstractEventLoop):
         await EnabledScopeSetter().set_en_sc()
         await LicenseCounter.activate()
         CeleryEventWatcher(self.emitter)
