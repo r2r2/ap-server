@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union
 
-from core.dto.service import EmailStruct, WebPush
+from core.dto.service import EmailStruct, WebPush, ClaimStatus
 
 
 class Event:
@@ -113,3 +113,19 @@ class SendWebPushEvent(Event):
     async def to_dict(self) -> dict:
         return self._data.dict()
 
+
+class ClaimStatusEvent(Event):
+    name = "claim_status"
+    _data: ClaimStatus | None
+
+    def __init__(self, data: ClaimStatus | None = None):
+        self._data = data
+        self._description = "Check Claim status."
+        super().__init__()
+
+    async def to_celery(self) -> ClaimStatus:
+        if self._data:
+            return self._data
+
+    async def to_dict(self) -> dict:
+        return self._data.dict()

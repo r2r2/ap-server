@@ -23,6 +23,12 @@ class EmailStruct(BaseModel):
         return self.__class__.__name__
 
 
+class ClaimStatus(BaseModel):
+    """Schema for checking claim status."""
+    claim: EntityId
+    time_to_expire: datetime
+
+
 class Auth:
     """Authentication"""
     class LoginDto(BaseModel):
@@ -65,7 +71,7 @@ class ClaimDto:
         is_in_blacklist: Optional[bool] = False
         pnd_agreement: Optional[bool] = False
         information: Optional[str]
-        status: constr(min_length=1)
+        status: constr(min_length=1) | None = "Действующая"
         approved: Optional[bool]
 
     class UpdateDto(BaseModel):

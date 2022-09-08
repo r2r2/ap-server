@@ -3,10 +3,10 @@ from pyee.asyncio import AsyncIOEventEmitter
 
 from core.communication.celery.tasks import (parking_time_exceeded,
                                              send_email_before_n_minutes,
-                                             send_email_celery, send_webpush)
+                                             send_email_celery, send_webpush, claim_status)
 from core.communication.event import (Event, MaxParkingTimeHoursExceededEvent,
                                       NotifyUsersInClaimWayBeforeNminutesEvent,
-                                      SendWebPushEvent)
+                                      SendWebPushEvent, ClaimStatusEvent)
 from core.communication.subscriber import Subscriber
 from core.utils.loggining import logger
 
@@ -20,6 +20,7 @@ class CeleryEventWatcher(Subscriber):
         self.set_listener("users_in_claimway_before_N_minutes", self.send_email_before_n_minutes_event)
         self.set_listener("max_parking_time_hours_exceeded", self.max_parking_time_hours_event)
         self.set_listener("webpush_event", self.webpush_event)
+        self.set_listener("claim_status", self.claim_status_event)
 
     @staticmethod
     async def send_email_events(event: Event):
@@ -63,6 +64,15 @@ class CeleryEventWatcher(Subscriber):
         try:
             send_webpush.delay(await event.to_celery())
         except send_webpush.OperationalError as exc:
+            logger.exception(f'Sending task raised: {exc}')
+        except SoftTimeLimitExceeded as ex:
+            logger.exception(ex)
+
+    @staticmethod
+    async def claim_status_event(event: ClaimStatusEvent):
+        try:
+            claim_status.delay(await event.to_celery())
+        except claim_status.OperationalError as exc:
             logger.exception(f'Sending task raised: {exc}')
         except SoftTimeLimitExceeded as ex:
             logger.exception(ex)

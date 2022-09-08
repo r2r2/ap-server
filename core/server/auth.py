@@ -14,16 +14,16 @@ from core.dto import service, validate
 from core.errors.auth_errors import (AuthenticationFailed,
                                      MissingAuthorizationCookie, ScopesFailed)
 from core.utils.crypto import AESCrypto, BaseCrypto
-from infrastructure.database.models import SystemUser, SystemUserSession
+from infrastructure.database.models import SystemUser, SystemUserSession, Role
 
 
-def generate_auth_resp(auth, session, token_data, payload):
+def generate_auth_resp(auth, session, token_data, scopes):
     expire = session.expire_time.strftime(auth.time_format)
     resp = json_response({
         "token": token_data.cipher_text,
         "session": session.id,
         "expire_at": expire,
-        "roles": payload
+        "scopes": scopes
     })
     resp.cookies["token"] = token_data.cipher_text
     resp.cookies["session"] = str(session.id)
@@ -38,9 +38,11 @@ class UserAuthController(HTTPMethodView):
         auth: Auth = request.app.ctx.auth
         user = await auth.get_user(dto.username, dto.password)
         payload = user.to_dict()
+        print(payload)
+        scopes = [role.id for role in await Role.filter(name__in=payload["scopes"])]
         token_data = await auth.generate_token(json.dumps(payload))
         session = await auth.create_session(user, request.headers.get("user-agent"), token_data)
-        return generate_auth_resp(auth, session, token_data, payload)
+        return generate_auth_resp(auth, session, token_data, scopes)
 
 
 class CookiesStruct:

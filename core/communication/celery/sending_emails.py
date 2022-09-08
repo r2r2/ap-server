@@ -13,8 +13,6 @@ from core.dto.service import EmailStruct
 from core.utils.loggining import logger
 from infrastructure.database.models import Claim, ClaimWay, SystemUser, Visitor
 
-COMMASPACE = ', '
-
 
 async def _send_email(data: EmailStruct) -> None:
     """Build a message and send email."""
@@ -59,7 +57,7 @@ def create_multipart_message(send_from: str, send_to: list, subject: str, text: 
     msg = MIMEMultipart()
     msg['From'] = send_from
     if isinstance(send_to, list):
-        msg['To'] = COMMASPACE.join(send_to)
+        msg['To'] = ', '.join(send_to)
     else:
         msg['To'] = send_to
     msg['Date'] = formatdate(localtime=True)

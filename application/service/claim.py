@@ -1,4 +1,5 @@
 import base64
+import datetime
 from io import BytesIO
 from itertools import zip_longest
 
@@ -10,13 +11,13 @@ from tortoise.transactions import atomic
 import settings
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
-from core.communication.celery.sending_emails import create_email_struct
+from core.communication.celery.sending_emails import create_email_struct, calculate_time_to_send_notify
 from core.communication.event import (Event,
                                       NotifyUsersInClaimWayBeforeNminutesEvent,
                                       NotifyUsersInClaimWayEvent,
-                                      SendWebPushEvent)
+                                      SendWebPushEvent, ClaimStatusEvent)
 from core.dto.access import EntityId
-from core.dto.service import ClaimDto, EmailStruct, VisitorDto, WebPush
+from core.dto.service import ClaimDto, EmailStruct, VisitorDto, WebPush, ClaimStatus
 from core.plugins.plugins_wrap import AddPlugins
 from infrastructure.database.models import (BlackList, Claim, ClaimWay,
                                             ClaimWayApproval, Pass,
@@ -65,6 +66,26 @@ class ClaimService(BaseService):
         """Notify SystemUsers in Claim.claim_way when Claim.approved==True"""
         return NotifyUsersInClaimWayEvent(
             await self.get_email_struct(claim_way, claim=claim, approved=True))
+
+    async def check_claim_status(self, claim: Claim) -> Event:
+        """If claim wasn't approve in time set claim status = Просрочена"""
+        return ClaimStatusEvent(await self.prepare_data(claim))
+
+    async def prepare_data(self, claim: Claim) -> ClaimStatus | None:
+        """Prepare data for event base on Visitor.visit_start_date."""
+        if time_to_claim := calculate_time_to_send_notify(claim):
+            _, time_to_expire = time_to_claim
+            data = ClaimStatus(
+                claim=claim.id,
+                time_to_expire=time_to_expire
+            )
+            return data
+
+    @staticmethod
+    async def check_if_claim_expired(data: ClaimStatus) -> None:
+        """Set status Просрочена, if calim wasn't approve until Visitor.visit_start_date."""
+        if (claim := await Claim.get_or_none(id=data.claim)) and (datetime.datetime.now() > data.time_to_expire):
+            setattr(claim, "status", "Просрочена")
 
     async def get_email_struct(self,
                                claim_way: ClaimWay,
@@ -128,6 +149,7 @@ class ClaimService(BaseService):
             self.notify(await self.time_before_for_claim_way(claim_way, claim))
         else:
             claim = await Claim.create(**kwrgs, pass_id=pass_id, system_user=system_user)
+        self.notify(await self.check_claim_status(claim))
         return claim
 
     @atomic(settings.CONNECTION_NAME)

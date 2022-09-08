@@ -1,6 +1,7 @@
 import asyncio
 from typing import Union
 
+from application.service.claim import ClaimService
 from celery import Task
 from celery.worker.request import Request
 from tortoise.queryset import Q
@@ -10,7 +11,7 @@ from application.service.parking import ParkingTimeslotService
 from application.service.web_push import WebPushController
 from core.communication.celery.celery_ import celery
 from core.communication.celery.sending_emails import _send_email
-from core.dto.service import EmailStruct, WebPush
+from core.dto.service import EmailStruct, WebPush, ClaimStatus
 from core.utils.loggining import logger
 from infrastructure.database.models import (Claim, ClaimWay, ParkingTimeslot,
                                             SystemUser)
@@ -116,3 +117,9 @@ def send_webpush(data: WebPush.ToCelery) -> None:
             data.subscriptions, data.title, data.body, data.url
         )
     )
+
+
+@celery.task(base=MyTask, name="~Claim Status~")
+def claim_status(data: ClaimStatus):
+    """Check claim status and set 'Просрочена' if claim wasn't approve in time."""
+    asyncio.get_event_loop().run_until_complete(ClaimService.check_if_claim_expired(data))
