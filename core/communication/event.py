@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union
 
-from core.dto.service import EmailStruct, WebPush, ClaimStatus
+from core.dto.service import ClaimStatus, EmailStruct, WebPush
 
 
 class Event:

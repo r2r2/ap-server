@@ -1,17 +1,17 @@
 import asyncio
 from typing import Union
 
-from application.service.claim import ClaimService
 from celery import Task
 from celery.worker.request import Request
 from tortoise.queryset import Q
 
 from application.service.asbp_archive import ArchiveController
+from application.service.claim import ClaimService
 from application.service.parking import ParkingTimeslotService
 from application.service.web_push import WebPushController
 from core.communication.celery.celery_ import celery
 from core.communication.celery.sending_emails import _send_email
-from core.dto.service import EmailStruct, WebPush, ClaimStatus
+from core.dto.service import ClaimStatus, EmailStruct, WebPush
 from core.utils.loggining import logger
 from infrastructure.database.models import (Claim, ClaimWay, ParkingTimeslot,
                                             SystemUser)

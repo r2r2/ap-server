@@ -11,11 +11,12 @@ from core.dto.access import EntityId
 from core.dto.service import ScopeConstructor
 from core.utils.crypto import BaseCrypto
 from core.utils.license_count import SysUserLicenses
-from infrastructure.database.models import (MODEL, Claim,
-                                            ClaimToZone, ClaimWay, EnableScope,
-                                            Parking, ParkingPlace, Pass, Role,
-                                            StrangerThings, SystemUser, Zone, Building, Division, Organisation,
-                                            JobTitle)
+from infrastructure.database.models import (MODEL, Building, Claim,
+                                            ClaimToZone, ClaimWay, Division,
+                                            EnableScope, JobTitle,
+                                            Organisation, Parking,
+                                            ParkingPlace, Pass, Role,
+                                            StrangerThings, SystemUser, Zone)
 from infrastructure.database.repository import EntityRepository
 
 

@@ -11,13 +11,15 @@ from tortoise.transactions import atomic
 import settings
 from application.exceptions import InconsistencyError
 from application.service.base_service import BaseService
-from core.communication.celery.sending_emails import create_email_struct, calculate_time_to_send_notify
-from core.communication.event import (Event,
+from core.communication.celery.sending_emails import (
+    calculate_time_to_send_notify, create_email_struct)
+from core.communication.event import (ClaimStatusEvent, Event,
                                       NotifyUsersInClaimWayBeforeNminutesEvent,
                                       NotifyUsersInClaimWayEvent,
-                                      SendWebPushEvent, ClaimStatusEvent)
+                                      SendWebPushEvent)
 from core.dto.access import EntityId
-from core.dto.service import ClaimDto, EmailStruct, VisitorDto, WebPush, ClaimStatus
+from core.dto.service import (ClaimDto, ClaimStatus, EmailStruct, VisitorDto,
+                              WebPush)
 from core.plugins.plugins_wrap import AddPlugins
 from infrastructure.database.models import (BlackList, Claim, ClaimWay,
                                             ClaimWayApproval, Pass,

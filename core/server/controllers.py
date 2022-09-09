@@ -6,11 +6,12 @@ from sanic.exceptions import NotFound
 from sanic.response import HTTPResponse, json
 from sanic.views import HTTPMethodView
 
-from application.access.access import (ClaimToZoneAccess, ClaimWayAccess,
+from application.access.access import (BuildingAccess, ClaimToZoneAccess,
+                                       ClaimWayAccess, DivisionAccess,
+                                       JobTitleAccess, OrganisationAccess,
                                        ParkingAccess, ParkingPlaceAccess,
                                        RoleAccess, ScopeConstructorAccess,
-                                       SystemUserAccess, ZoneAccess, BuildingAccess, DivisionAccess, OrganisationAccess,
-                                       JobTitleAccess)
+                                       SystemUserAccess, ZoneAccess)
 from application.access.base_access import BaseAccess
 from core.dto import access, validate
 from core.dto.access import EntityId

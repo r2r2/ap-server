@@ -1,10 +1,11 @@
 from typing import Dict, Type
 
-from application.access.access import (ClaimToZoneAccess, ClaimWayAccess,
+from application.access.access import (BuildingAccess, ClaimToZoneAccess,
+                                       ClaimWayAccess, DivisionAccess,
+                                       JobTitleAccess, OrganisationAccess,
                                        ParkingAccess, ParkingPlaceAccess,
                                        RoleAccess, ScopeConstructorAccess,
-                                       SystemUserAccess, ZoneAccess, BuildingAccess, DivisionAccess, OrganisationAccess,
-                                       JobTitleAccess)
+                                       SystemUserAccess, ZoneAccess)
 from application.access.base_access import BaseAccess
 
 

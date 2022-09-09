@@ -14,7 +14,8 @@ from core.dto import service, validate
 from core.errors.auth_errors import (AuthenticationFailed,
                                      MissingAuthorizationCookie, ScopesFailed)
 from core.utils.crypto import AESCrypto, BaseCrypto
-from infrastructure.database.models import SystemUser, SystemUserSession, Role, EnableScope
+from infrastructure.database.models import (EnableScope, Role, SystemUser,
+                                            SystemUserSession)
 
 
 def generate_auth_resp(auth, session, token_data, scopes, username):
