@@ -133,4 +133,3 @@ class Server:
                                fast=settings.SANIC_FAST,
                                workers=settings.SANIC_WORKERS,
                                )
-

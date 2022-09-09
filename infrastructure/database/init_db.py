@@ -150,7 +150,8 @@ async def fill_with_default_data() -> None:
 
         if i & 1 and i < amount // 2:
             await BlackList.create(level=fake.random.choice(["Зелёный", "Жёлтый", "Красный"]),
-                                   visitor=visitor)
+                                   visitor=visitor,
+                                   comment=fake.sentence(nb_words=10))
 
     await Zone.bulk_create([
         Zone(name='reception'),

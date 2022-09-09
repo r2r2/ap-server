@@ -11,10 +11,11 @@ from core.dto.access import EntityId
 from core.dto.service import ScopeConstructor
 from core.utils.crypto import BaseCrypto
 from core.utils.license_count import SysUserLicenses
-from infrastructure.database.models import (AbstractBaseModel, Claim,
+from infrastructure.database.models import (MODEL, Claim,
                                             ClaimToZone, ClaimWay, EnableScope,
                                             Parking, ParkingPlace, Pass, Role,
-                                            StrangerThings, SystemUser, Zone)
+                                            StrangerThings, SystemUser, Zone, Building, Division, Organisation,
+                                            JobTitle)
 from infrastructure.database.repository import EntityRepository
 
 
@@ -89,7 +90,7 @@ class ZoneAccess(BaseAccess):
     target_model = Zone
 
     @atomic(settings.CONNECTION_NAME)
-    async def create(self, system_user: SystemUser, dto: access.Zone.CreationDto) -> AbstractBaseModel:
+    async def create(self, system_user: SystemUser, dto: access.Zone.CreationDto) -> MODEL:
         return await super().create(system_user, dto)
 
     @atomic(settings.CONNECTION_NAME)
@@ -142,7 +143,7 @@ class ClaimWayAccess(BaseAccess):
         await self.add_roles_and_users(claim_way, dto)
         dct["after"] = await claim_way.values_dict(m2m_fields=True)
         await StrangerThings.create(system_user=system_user, claim_way_changed=dct)
-        
+
         return entity_id
 
     @atomic(settings.CONNECTION_NAME)
@@ -210,7 +211,7 @@ class RoleAccess(BaseAccess):
     target_model = Role
 
     @atomic(settings.CONNECTION_NAME)
-    async def create(self, system_user: SystemUser, dto: access.Role.CreationDto) -> AbstractBaseModel:
+    async def create(self, system_user: SystemUser, dto: access.Role.CreationDto) -> MODEL:
         return await super().create(system_user, dto)
 
     @atomic(settings.CONNECTION_NAME)
@@ -226,7 +227,7 @@ class ScopeConstructorAccess(BaseAccess):
     target_model = EnableScope
 
     @atomic(settings.CONNECTION_NAME)
-    async def create(self, system_user: SystemUser, dto: ScopeConstructor.UpdateDto) -> AbstractBaseModel:
+    async def create(self, system_user: SystemUser, dto: ScopeConstructor.UpdateDto) -> MODEL:
         raise InconsistencyError(message="Creating new scopes is prohibited.")
 
     @atomic(settings.CONNECTION_NAME)
@@ -339,3 +340,89 @@ class ParkingPlaceAccess(BaseAccess):
     async def mass_delete(self) -> str:
         await ParkingPlace.all().delete()
         return "All parking places was deleted."
+
+
+class BuildingAccess(BaseAccess):
+    target_model = Building
+
+    @atomic(settings.CONNECTION_NAME)
+    async def create(self, system_user: SystemUser, dto: access.BuildingDto.CreationDto) -> MODEL:
+        return await super().create(system_user, dto)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def update(self, system_user: SystemUser, entity_id: EntityId, dto: access.BuildingDto.UpdateDto) -> EntityId:
+        return await super().update(system_user, entity_id, dto)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
+        return await super().delete(system_user, entity_id)
+
+
+class DivisionAccess(BaseAccess):
+    target_model = Division
+
+    @atomic(settings.CONNECTION_NAME)
+    async def create(self, system_user: SystemUser, dto: access.DivisionDto.CreationDto) -> MODEL:
+        subdivision = None
+        if dto.subdivision:
+            subdivision = await Division.get_or_none(id=dto.subdivision)
+
+        entity = await Division.create(name=dto.name, email=dto.email,
+                                       subdivision=subdivision if dto.subdivision else None)
+        return entity
+
+    @atomic(settings.CONNECTION_NAME)
+    async def update(self, system_user: SystemUser, entity_id: EntityId, dto: access.DivisionDto.UpdateDto) -> EntityId:
+        division = await Division.get_or_none(id=entity_id)
+        if division is None:
+            raise InconsistencyError(message=f"Division with id={entity_id} doesn't exist.")
+
+        for field, value in dto.dict().items():
+            if value:
+                if field == "subdivision":
+                    subdivision = await Division.get_or_none(id=value)
+                    if subdivision is None:
+                        raise InconsistencyError(message=f"Division with id={value} doesn't exist.")
+                    setattr(division, field, subdivision)
+                else:
+                    setattr(division, field, value)
+
+        return entity_id
+
+    @atomic(settings.CONNECTION_NAME)
+    async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
+        return await super().delete(system_user, entity_id)
+
+
+class OrganisationAccess(BaseAccess):
+    target_model = Organisation
+
+    @atomic(settings.CONNECTION_NAME)
+    async def create(self, system_user: SystemUser, dto: access.OrganisationDto.CreationDto) -> MODEL:
+        return await super().create(system_user, dto)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def update(self, system_user: SystemUser, entity_id: EntityId,
+                     dto: access.OrganisationDto.UpdateDto) -> EntityId:
+        return await super().update(system_user, entity_id, dto)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
+        return await super().delete(system_user, entity_id)
+
+
+class JobTitleAccess(BaseAccess):
+    target_model = JobTitle
+
+    @atomic(settings.CONNECTION_NAME)
+    async def create(self, system_user: SystemUser, dto: access.JobTitleDto.CreationDto) -> MODEL:
+        return await super().create(system_user, dto)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def update(self, system_user: SystemUser, entity_id: EntityId,
+                     dto: access.JobTitleDto.UpdateDto) -> EntityId:
+        return await super().update(system_user, entity_id, dto)
+
+    @atomic(settings.CONNECTION_NAME)
+    async def delete(self, system_user: SystemUser, entity_id: EntityId) -> EntityId:
+        return await super().delete(system_user, entity_id)

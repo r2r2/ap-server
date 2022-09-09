@@ -67,13 +67,9 @@ class ClaimService(BaseService):
         return NotifyUsersInClaimWayEvent(
             await self.get_email_struct(claim_way, claim=claim, approved=True))
 
-    async def check_claim_status(self, claim: Claim) -> Event:
-        """If claim wasn't approve in time set claim status = Просрочена"""
-        return ClaimStatusEvent(await self.prepare_data(claim))
-
-    async def prepare_data(self, claim: Claim) -> ClaimStatus | None:
+    async def prepare_data_for_claim_status(self, claim: Claim) -> ClaimStatus | None:
         """Prepare data for event base on Visitor.visit_start_date."""
-        if time_to_claim := calculate_time_to_send_notify(claim):
+        if time_to_claim := await calculate_time_to_send_notify(claim):
             _, time_to_expire = time_to_claim
             data = ClaimStatus(
                 claim=claim.id,
@@ -149,7 +145,9 @@ class ClaimService(BaseService):
             self.notify(await self.time_before_for_claim_way(claim_way, claim))
         else:
             claim = await Claim.create(**kwrgs, pass_id=pass_id, system_user=system_user)
-        self.notify(await self.check_claim_status(claim))
+
+        if data := await self.prepare_data_for_claim_status(claim):
+            self.notify(ClaimStatusEvent(data))
         return claim
 
     @atomic(settings.CONNECTION_NAME)

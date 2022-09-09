@@ -124,8 +124,7 @@ class ClaimStatusEvent(Event):
         super().__init__()
 
     async def to_celery(self) -> ClaimStatus:
-        if self._data:
-            return self._data
+        return self._data
 
     async def to_dict(self) -> dict:
         return self._data.dict()

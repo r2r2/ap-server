@@ -14,16 +14,17 @@ from core.dto import service, validate
 from core.errors.auth_errors import (AuthenticationFailed,
                                      MissingAuthorizationCookie, ScopesFailed)
 from core.utils.crypto import AESCrypto, BaseCrypto
-from infrastructure.database.models import SystemUser, SystemUserSession, Role
+from infrastructure.database.models import SystemUser, SystemUserSession, Role, EnableScope
 
 
-def generate_auth_resp(auth, session, token_data, scopes):
+def generate_auth_resp(auth, session, token_data, scopes, username):
     expire = session.expire_time.strftime(auth.time_format)
     resp = json_response({
         "token": token_data.cipher_text,
         "session": session.id,
         "expire_at": expire,
-        "scopes": scopes
+        "scopes": scopes,
+        "username": username
     })
     resp.cookies["token"] = token_data.cipher_text
     resp.cookies["session"] = str(session.id)
@@ -38,11 +39,15 @@ class UserAuthController(HTTPMethodView):
         auth: Auth = request.app.ctx.auth
         user = await auth.get_user(dto.username, dto.password)
         payload = user.to_dict()
-        print(payload)
-        scopes = [role.id for role in await Role.filter(name__in=payload["scopes"])]
+        scopes = await self.get_routes_id(payload["scopes"])
         token_data = await auth.generate_token(json.dumps(payload))
         session = await auth.create_session(user, request.headers.get("user-agent"), token_data)
-        return generate_auth_resp(auth, session, token_data, scopes)
+        return generate_auth_resp(auth, session, token_data, scopes, dto.username)
+
+    async def get_routes_id(self, payload: list[str]):
+        scopes = [role.id for role in await Role.filter(name__in=payload)]
+        routes_id = [route.id for route in await EnableScope.filter(scopes__id__in=scopes).distinct()]
+        return routes_id
 
 
 class CookiesStruct:

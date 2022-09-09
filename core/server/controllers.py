@@ -9,7 +9,8 @@ from sanic.views import HTTPMethodView
 from application.access.access import (ClaimToZoneAccess, ClaimWayAccess,
                                        ParkingAccess, ParkingPlaceAccess,
                                        RoleAccess, ScopeConstructorAccess,
-                                       SystemUserAccess, ZoneAccess)
+                                       SystemUserAccess, ZoneAccess, BuildingAccess, DivisionAccess, OrganisationAccess,
+                                       JobTitleAccess)
 from application.access.base_access import BaseAccess
 from core.dto import access, validate
 from core.dto.access import EntityId
@@ -179,3 +180,39 @@ class RoleController(BaseAccessController):
     post_dto = access.Role.CreationDto
     put_dto = access.Role.UpdateDto
     access_type = RoleAccess
+
+
+class BuildingController(BaseAccessController):
+    entity_name = 'buildings'
+    enabled_scopes = ["root", "Администратор"]
+    identity_type = int
+    post_dto = access.BuildingDto.CreationDto
+    put_dto = access.BuildingDto.UpdateDto
+    access_type = BuildingAccess
+
+
+class DivisionController(BaseAccessController):
+    entity_name = 'divisions'
+    enabled_scopes = ["root", "Администратор"]
+    identity_type = int
+    post_dto = access.DivisionDto.CreationDto
+    put_dto = access.DivisionDto.UpdateDto
+    access_type = DivisionAccess
+
+
+class OrganisationController(BaseAccessController):
+    entity_name = 'organisations'
+    enabled_scopes = ["root", "Администратор"]
+    identity_type = int
+    post_dto = access.OrganisationDto.CreationDto
+    put_dto = access.OrganisationDto.UpdateDto
+    access_type = OrganisationAccess
+
+
+class JobTitleController(BaseAccessController):
+    entity_name = 'job-titles'
+    enabled_scopes = ["root", "Администратор"]
+    identity_type = int
+    post_dto = access.JobTitleDto.CreationDto
+    put_dto = access.JobTitleDto.UpdateDto
+    access_type = JobTitleAccess

@@ -99,3 +99,51 @@ class Role:
 
 class Scopes(BaseModel):
     roles: conlist(item_type=EntityId, min_items=1)
+
+
+class BuildingDto:
+    class CreationDto(BaseModel):
+        name: str
+        entrance: str | None
+        floor: str | None
+        room: str | None
+        kpp: str | None
+
+    class UpdateDto(BaseModel):
+        name: str | None
+        entrance: str | None
+        floor: str | None
+        room: str | None
+        kpp: str | None
+
+
+class DivisionDto:
+    class CreationDto(BaseModel):
+        name: str
+        email: EmailStr | None
+        subdivision: EntityId | None
+
+    class UpdateDto(BaseModel):
+        name: str | None
+        email: EmailStr | None
+        subdivision: EntityId | None
+
+
+class OrganisationDto:
+    class CreationDto(BaseModel):
+        short_name: str
+        full_name: str | None
+        email: EmailStr | None
+
+    class UpdateDto(BaseModel):
+        short_name: str | None
+        full_name: str | None
+        email: EmailStr | None
+
+
+class JobTitleDto:
+    class CreationDto(BaseModel):
+        name: str
+
+    class UpdateDto(BaseModel):
+        name: str

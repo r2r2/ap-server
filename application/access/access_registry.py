@@ -3,7 +3,8 @@ from typing import Dict, Type
 from application.access.access import (ClaimToZoneAccess, ClaimWayAccess,
                                        ParkingAccess, ParkingPlaceAccess,
                                        RoleAccess, ScopeConstructorAccess,
-                                       SystemUserAccess, ZoneAccess)
+                                       SystemUserAccess, ZoneAccess, BuildingAccess, DivisionAccess, OrganisationAccess,
+                                       JobTitleAccess)
 from application.access.base_access import BaseAccess
 
 
@@ -20,6 +21,10 @@ class AccessRegistry:
             ParkingAccess: ParkingAccess(),
             RoleAccess: RoleAccess(),
             ScopeConstructorAccess: ScopeConstructorAccess(),
+            BuildingAccess: BuildingAccess(),
+            DivisionAccess: DivisionAccess(),
+            OrganisationAccess: OrganisationAccess(),
+            JobTitleAccess: JobTitleAccess(),
         }
 
     def get(self, access: Type[BaseAccess]) -> BaseAccess:

@@ -117,6 +117,7 @@ class VisitorDto:
         transport: Optional[EntityId]
         military_id: Optional[EntityId]
         claim: Optional[EntityId]
+        user: Optional[EntityId]
 
     class UpdateDto(BaseModel):
         first_name: Optional[constr(min_length=1)]
@@ -140,6 +141,7 @@ class VisitorDto:
         transport: Optional[EntityId]
         military_id: Optional[EntityId]
         claim: Optional[EntityId]
+        user: Optional[EntityId]
 
 
 class VisitSessionDto:
@@ -328,11 +330,15 @@ class BlackListDto:
     """Black list schema"""
     class CreationDto(BaseModel):
         visitor: EntityId
-        level: Optional[str]
+        level: str | None
+        comment: str
+        photo: bytes | None
 
     class UpdateDto(BaseModel):
-        visitor: Optional[EntityId]
-        level: Optional[str]
+        visitor: EntityId | None
+        level: str | None
+        comment: str
+        photo: bytes | None
 
 
 class SystemSettingsDto(BaseModel):
@@ -348,6 +354,18 @@ class SystemSettingsDto(BaseModel):
     days_before_archive: Optional[PositiveInt]
     max_parking_time_hours: Optional[PositiveInt]
     parking_timeslot_interval: Optional[PositiveInt]
+    visitor_middle_name: dict[str, bool] | None
+    visitor_company_name: dict[str, bool] | None
+    visitor_attribute: dict[str, bool] | None
+    visitor_date_of_birth: dict[str, bool] | None
+    pass_type: dict[str, bool] | None
+    pass_valid_till_date: dict[str, bool] | None
+    transport_model: dict[str, bool] | None
+    transport_number: dict[str, bool] | None
+    transport_color: dict[str, bool] | None
+    document: dict[str, bool] | None
+    document_number: dict[str, bool] | None
+    document_registration: dict[str, bool] | None
 
     @validator("watermark_format")
     def to_upper(cls, value):

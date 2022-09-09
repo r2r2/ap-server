@@ -83,7 +83,8 @@ class VisitorService(BaseService):
             "military_id": await MilitaryId.get_or_none(id=dto.military_id) if dto.military_id else None,
             "transport": await Transport.get_or_none(id=dto.transport) if dto.transport else None,
             "claim": await Claim.get_or_none(id=dto.claim).prefetch_related() if dto.claim else None,
-            "visitor_photo": await VisitorPhoto.get_or_none(id=dto.visitor_photo) if dto.visitor_photo else None
+            "visitor_photo": await VisitorPhoto.get_or_none(id=dto.visitor_photo) if dto.visitor_photo else None,
+            "user": await SystemUser.get_or_none(id=dto.user) if dto.user else None,
         }
         return fk_relations
 
@@ -189,7 +190,7 @@ class VisitorService(BaseService):
             title = f"Выдан пропуск для {visitor}."
             body = f"{system_user} назначил пропуск №{visitor.pass_id} посетителю {visitor}."
             subscriptions = await PushSubscription.filter(system_user=claim.system_user_id)  # noqa
-            data = WebPush.ToCelery(subscriptions=subscriptions, title=title, body=body)
+            data = WebPush.ToCelery(subscriptions=subscriptions, title=title, body=body, url=None)
             self.notify(SendWebPushEvent(data))
 
     @atomic(settings.CONNECTION_NAME)

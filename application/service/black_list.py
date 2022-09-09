@@ -21,7 +21,8 @@ class BlackListService(BaseService):
         email_struct, security_officers = await create_email_struct_for_sec_officers(visitor, user)
         # Send web push notifications
         subscriptions = await PushSubscription.filter(system_user__id__in=[user.id for user in security_officers])
-        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text)
+        data = WebPush.ToCelery(subscriptions=subscriptions, title=email_struct.subject, body=email_struct.text,
+                                url=None)
         self.notify(SendWebPushEvent(data=data))
         return email_struct
 
@@ -34,8 +35,9 @@ class BlackListService(BaseService):
         if await BlackList.exists(visitor=visitor.id):
             raise InconsistencyError(message=f"Visitor with id={dto.visitor} already in BlackList.")
 
-        black_list = await BlackList.create(visitor=visitor,
-                                            level=dto.level)
+        kwrgs = {field: value for field, value in dto.dict().items() if field != "visitor"}
+
+        black_list = await BlackList.create(visitor=visitor, **kwrgs)
 
         self.notify(NotifyVisitorInBlackListEvent(await self.collect_target_users(visitor, user=system_user)))
 

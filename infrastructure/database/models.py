@@ -94,6 +94,7 @@ class SystemUser(AbstractBaseModel, TimestampMixin, FakeDeleted):
     stranger_things: fields.ReverseRelation["StrangerThings"]
     push_subscription: fields.ReverseRelation["PushSubscription"]
     claims: fields.ReverseRelation["Claim"]
+    visitors: fields.ReverseRelation["Visitor"]
 
     def __str__(self) -> str:
         return f"{self.username}: {self.first_name} {self.last_name}"
@@ -169,6 +170,10 @@ class Visitor(AbstractBaseModel, TimestampMixin, FakeDeleted):
     visit_purpose = fields.CharField(max_length=255, null=True, description="цель посещения")
     visit_start_date = fields.DatetimeField(null=True, description="дата или период посещения")
     visit_end_date = fields.DatetimeField(null=True, description="дата или период посещения")
+
+    user: fields.ForeignKeyNullableRelation["SystemUser"] = fields.ForeignKeyField(
+        "asbp.SystemUser", on_delete=fields.CASCADE, related_name="visitors", null=True, description='Кто пригласил?'
+    )
 
     passport: fields.OneToOneNullableRelation["Passport"] = fields.OneToOneField(
         'asbp.Passport', on_delete=fields.CASCADE, related_name='visitor', null=True, index=True
@@ -312,6 +317,76 @@ class VisitorPhoto(AbstractBaseModel, TimestampMixin):
     militaryid: fields.ReverseRelation["MilitaryId"]
     international_passport: fields.ReverseRelation["InternationalPassport"]
     passport: fields.ReverseRelation["Passport"]
+
+
+# ------------------------------------HAND BOOKS---------------------------------
+class Building(AbstractBaseModel, TimestampMixin):
+    """Спарвочник 'Здания'"""
+    name = fields.CharField(max_length=255, description="Название/№/тип здания")
+    entrance = fields.CharField(max_length=255, description="Подъезд", null=True)
+    floor = fields.CharField(max_length=255, description="Этаж", null=True)
+    room = fields.CharField(max_length=255, description="Комната", null=True)
+    kpp = fields.CharField(max_length=255, description="КПП", null=True)
+
+
+class Division(AbstractBaseModel, TimestampMixin):
+    """Справочник 'Подразделения'"""
+    name = fields.CharField(max_length=255, description="Название")
+    email = fields.CharField(max_length=36, null=True, index=True)
+    subdivision: fields.ForeignKeyNullableRelation["Division"] = fields.ForeignKeyField(
+        "asbp.Division", related_name="belongs_to_the_division", null=True
+    )
+    belongs_to_the_division: fields.ReverseRelation["Division"]
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    async def full_hierarchy__async_for(self, level=0):
+        """
+        Demonstrates ``async for` to fetch relations
+
+        An async iterator will fetch the relationship on-demand.
+        """
+        text = [
+            f"{level * '  '}{self}"
+        ]
+        async for division in self.belongs_to_the_division:
+            text.append(await division.full_hierarchy__async_for(level + 1))
+        return "\n".join(text)
+
+    async def full_hierarchy__fetch_related(self, level=0):
+        """
+        Demonstrates ``await .fetch_related`` to fetch relations
+
+        On prefetching the data, the relationship files will contain a regular list.
+
+        This is how one would get relations working on sync serialization/templating frameworks.
+        """
+        await self.fetch_related("belongs_to_the_division")
+        text = [
+            f"{level * '  '}{self}"
+        ]
+        for division in self.belongs_to_the_division:
+            text.append(await division.full_hierarchy__fetch_related(level + 1))
+        return "\n".join(text)
+
+
+class Organisation(AbstractBaseModel, TimestampMixin):
+    """Справочник 'Организации'"""
+    short_name = fields.CharField(max_length=255, description="Короткое наименование(А-БТ)")
+    full_name = fields.CharField(max_length=255, description="Полное наименование(ООО А-БТ)", null=True)
+    email = fields.CharField(max_length=36, null=True, index=True)
+
+    def __str__(self) -> str:
+        return f"{self.full_name}"
+
+
+class JobTitle(AbstractBaseModel, TimestampMixin):
+    """Справочник 'Должности'"""
+    name = fields.CharField(max_length=255, description="Название должности")
+
+    def __str__(self) -> str:
+        return f"{self.name}"
 
 
 # ------------------------------------CLAIM---------------------------------
@@ -473,6 +548,8 @@ class BlackList(AbstractBaseModel, TimestampMixin):
         'asbp.Visitor', on_delete=fields.CASCADE, index=True, related_name='black_lists', unique=True
     )
     level = fields.CharField(max_length=24, description='Уровни нарушений', null=True)
+    comment = fields.TextField()
+    photo = fields.BinaryField(null=True)
 
 
 class Plugin(AbstractBaseModel):
@@ -504,6 +581,18 @@ class SystemSettings(AbstractBaseModel, TimestampMixin):
                                                                          "нахождения гостевого автомобиля на парковке.")
     parking_timeslot_interval = fields.SmallIntField(default=0, description="Интервал в минутах для "
                                                                             "бронирования машиноместа на парковке.")
+    visitor_middle_name = fields.JSONField(description="Поле посетитель", null=True)
+    visitor_company_name = fields.JSONField(description="Название организации", null=True)
+    visitor_attribute = fields.JSONField(description="Иностранный гражданин", null=True)
+    visitor_date_of_birth = fields.JSONField(description="Дата рождения", null=True)
+    pass_type = fields.JSONField(description='Тип пропуска', null=True)
+    pass_valid_till_date = fields.JSONField(description='До какого числа действует пропуск', null=True)
+    transport_model = fields.JSONField(description="Модель", null=True)
+    transport_number = fields.JSONField(description='Регистрационный номер', null=True)
+    transport_color = fields.JSONField(description='Цвет', null=True)
+    document = fields.JSONField(description="Документ", null=True)
+    document_number = fields.JSONField(description="Реквизиты документа", null=True)
+    document_registration = fields.JSONField(description="Место регистрации", null=True)
 
 
 class StrangerThings(AbstractBaseModel, TimestampMixin):

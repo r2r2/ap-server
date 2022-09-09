@@ -11,7 +11,7 @@ class SystemSettingsService(BaseService):
     target_model = SystemSettings
 
     @atomic(settings.CONNECTION_NAME)
-    async def update(self, alter_user: SystemUser, dto: SystemSettingsDto) -> SystemSettings:
+    async def update(self, _: SystemUser, dto: SystemSettingsDto) -> SystemSettings:
         sys_settings = await SystemSettings.get_or_none(id=1)
         if sys_settings is None:
             raise InconsistencyError(message=f"SystemSettings can't be None.")
