@@ -1,0 +1,23 @@
+before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+  - eval $(ssh-agent -s)
+  # - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - mkdir -p ~/.ssh/id_rsa
+  - chmod 700 ~/.ssh/id_rsa
+  - ssh-keyscan $SSH_HOST >> ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  # - git config --global user.email "darth@empire.com"
+  # - git config --global user.name "Darth Vader"
+
+stages:
+  - deploy
+
+prod-deploy:
+  only:
+    - develop
+  stage: deploy
+  script: 
+  # - 'which ssh || apt-get update -y && apt-get install openssh-server -y'
+  # - ssh $SSH_USER@$SSH_HOST "ipconfig"
+  - ssh -tt $SSH_USER@$SSH_HOST "cd ap-server && docker-compose down && docker system prune -a -f && git pull origin develop && docker-compose build --no-cache && docker-compose up -d"

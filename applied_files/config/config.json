@@ -1,0 +1,30 @@
+{
+  "app_name": "asbp",
+  "streaming": {
+    "listen_timeout": 0.01,
+    "ping_timeout": 5
+  },
+  "logger": {
+    "log_file": "applied_files/logs/main.log",
+    "rotation_trigger": "100 MB",
+    "compression": "tar",
+    "retention": "1 day"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "file_store_path": "applied_files/media",
+    "static_url": "/static",
+    "static_dir": "applied_files/media"
+  },
+  "database": {
+    "host": "localhost",
+    "port": "5432",
+    "user": "testuser",
+    "password": "Fedora132",
+    "database": "asbp",
+    "db_schema": "asbp",
+    "with_migrations": true,
+    "migrations_path": "applied_files/migrations"
+  }
+}
